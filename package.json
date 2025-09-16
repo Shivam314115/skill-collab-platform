@@ -20,6 +20,7 @@
   "homepage": "https://github.com/Shivam314115/skill-collab-platform#readme",
   "dependencies": {
     "autoprefixer": "^10.4.21",
+    "firebase": "^12.2.1",
     "postcss": "^8.5.6",
     "swiper": "^11.2.10",
     "tailwindcss": "^4.1.13"

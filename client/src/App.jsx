@@ -1,6 +1,10 @@
 import React, { useState, createContext, useContext, useRef, useEffect } from 'react';
 import { Routes, Route, useNavigate, Outlet, Link, NavLink, Navigate, useLocation, useParams } from 'react-router-dom';
 
+// --- Firebase imports for Google Auth ---
+import { initializeApp } from 'firebase/app';
+import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from 'firebase/auth';
+
 // --- UPDATED MOCK DATA FOR NEW FEATURES ---
 const mockUsers = [
     { id: 1, name: 'Alice Johnson', role: 'Frontend Developer', avatar: 'A', location: 'San Francisco, CA', bio: 'Passionate about creating beautiful and intuitive user interfaces. Skilled in React, Tailwind, and Figma.' },
@@ -47,27 +51,90 @@ const mockMessages = {
     4: [], // No messages with Diana Miller yet
 };
 
+// --- NEW MOCK DATA FOR LOCATION DROPDOWNS ---
+const mockLocations = {
+    "USA": {
+        "California": ["Los Angeles", "San Francisco"],
+        "New York": ["New York City", "Buffalo"],
+    },
+    "Canada": {
+        "Ontario": ["Toronto", "Ottawa"],
+        "Quebec": ["Montreal", "Quebec City"],
+    },
+    "India": {
+        "Maharashtra": ["Mumbai", "Pune"],
+        "Karnataka": ["Bangalore", "Mysore"],
+    },
+};
+
+// --- Firebase Configuration ---
+// REPLACE WITH YOUR OWN FIREBASE CONFIG
+const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_AUTH_DOMAIN",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_STORAGE_BUCKET",
+    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+    appId: "YOUR_APP_ID"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const googleProvider = new GoogleAuthProvider();
+
 
 // --- CONTEXTS (Authentication & Theming) ---
 const AuthContext = createContext(null);
 
 const AuthProvider = ({ children }) => {
-    const [isLoggedIn, setIsLoggedIn] = useState(false);
-    const [currentUser, setCurrentUser] = useState(mockUsers[0]); // Default to Alice for demo
+    const [isLoggedIn, setIsLoggedIn] = useState(null); // Use null to indicate "checking auth state"
+    const [currentUser, setCurrentUser] = useState(mockUsers[0]);
     const navigate = useNavigate();
+
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            if (user) {
+                setIsLoggedIn(true);
+                setCurrentUser({
+                    id: user.uid,
+                    name: user.displayName || 'Guest User',
+                    email: user.email,
+                    avatar: user.displayName ? user.displayName[0] : 'U',
+                    role: 'Authenticated User'
+                });
+            } else {
+                setIsLoggedIn(false);
+                setCurrentUser(null);
+            }
+        });
+        return () => unsubscribe();
+    }, []);
 
     const login = () => {
         setIsLoggedIn(true);
-        navigate('/'); // CORRECTED: Redirect to the landing page after login
+        navigate('/dashboard');
     };
 
     const logout = () => {
-        setIsLoggedIn(false);
-        navigate('/');
+        auth.signOut().then(() => {
+            setIsLoggedIn(false);
+            navigate('/');
+        }).catch((error) => {
+            console.error("Logout failed:", error);
+        });
+    };
+
+    const googleSignIn = async () => {
+        try {
+            await signInWithPopup(auth, googleProvider);
+            navigate('/dashboard');
+        } catch (error) {
+            console.error("Google sign-in failed:", error);
+        }
     };
 
     return (
-        <AuthContext.Provider value={{ isLoggedIn, login, logout, user: currentUser }}>
+        <AuthContext.Provider value={{ isLoggedIn, login, logout, user: currentUser, googleSignIn }}>
             {children}
         </AuthContext.Provider>
     );
@@ -84,7 +151,7 @@ const DiscoverIcon = () => (<svg className="h-6 w-6" fill="none" viewBox="0 0 24
 const ChatIcon = () => (<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>);
 const NotificationsIcon = () => (<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>);
 const SettingsIcon = () => (<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>);
-const SupportIcon = () => (<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>);
+const SupportIcon = () => (<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 0 11-18 0 9 9 0 0118 0z" /></svg>);
 const MoonIcon = () => (<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>);
 const SearchIcon = () => (<svg className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>);
 const HeartIcon = () => (<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.636l1.318-1.318a4.5 4.5 0 116.364 6.364L12 20.364l-7.682-7.682a4.5 4.5 0 010-6.364z" /></svg>);
@@ -96,8 +163,8 @@ const PlusIcon = () => (<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24"
 const Logo = ({ size = 'large' }) => (
     <div className="flex items-center">
         <Link to="/" className="flex items-center cursor-pointer">
-            <div className="relative">
-                <div className={`bg-gray-200 rounded-full ${size === 'large' ? 'w-20 h-20 md:w-28 md:h-28' : 'w-16 h-16'}`}></div>
+            <div className={`relative ${size === 'large' ? 'w-20 h-20 md:w-28 md:h-28' : 'w-16 h-16'}`}>
+                <div className={`bg-gray-200 rounded-full w-full h-full`}></div>
                 <div className={`absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-zinc-900 rounded-full ${size === 'large' ? 'w-8 h-10 md:w-10 md:h-12' : 'w-6 h-8'}`}></div>
             </div>
             <h1 className={`font-bold text-white ml-4 font-poppins ${size === 'large' ? 'text-4xl md:text-6xl' : 'text-3xl'}`}>AgileAtlas</h1>
@@ -105,20 +172,47 @@ const Logo = ({ size = 'large' }) => (
     </div>
 );
 
-const FormInput = ({ label, type, name, placeholder, value, onChange, error, containerClassName = '' }) => (
-    <div className={containerClassName}>
-        {label && <label className="text-white text-opacity-90 font-semibold mb-2 block">{label}</label>}
-        <input
-            type={type}
-            name={name}
-            placeholder={placeholder}
-            value={value}
-            onChange={onChange}
-            className={`w-full bg-[#303030] rounded-xl p-3 text-gray-300 placeholder-gray-500/50 focus:outline-none focus:ring-2 ${error ? 'ring-2 ring-red-500' : 'focus:ring-[#36B083]'}`}
-        />
-        {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
-    </div>
-);
+const FormInput = ({ label, type, name, placeholder, value, onChange, error, containerClassName = '', min, options, children }) => {
+    const inputClasses = `w-full bg-[#303030] rounded-xl p-3 text-gray-300 placeholder-gray-500/50 focus:outline-none focus:ring-2 ${error ? 'ring-2 ring-red-500' : 'focus:ring-[#36B083]'}`;
+
+    const renderInput = () => {
+        if (type === 'select') {
+            return (
+                <select
+                    name={name}
+                    value={value}
+                    onChange={onChange}
+                    className={inputClasses}
+                >
+                    <option value="" disabled>{placeholder}</option>
+                    {options.map((option, index) => (
+                        <option key={index} value={option}>{option}</option>
+                    ))}
+                </select>
+            );
+        }
+        return (
+            <input
+                type={type}
+                name={name}
+                placeholder={placeholder}
+                value={value}
+                onChange={onChange}
+                min={min}
+                className={inputClasses}
+            />
+        );
+    };
+
+    return (
+        <div className={containerClassName}>
+            {label && <label className="text-white text-opacity-90 font-semibold mb-2 block">{label}</label>}
+            {renderInput()}
+            {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
+            {children}
+        </div>
+    );
+};
 
 const SocialButton = ({ icon, text, onClick }) => (
     <button onClick={onClick} className="w-full bg-[#303030] rounded-xl p-3 flex items-center justify-center text-white font-semibold hover:bg-zinc-700 transition-colors">
@@ -138,9 +232,24 @@ const ActionButton = ({ text, type = 'button' }) => (
 const ProfileDropdown = () => {
     const [isOpen, setIsOpen] = useState(false);
     const { logout, user } = useAuth();
+    const dropdownRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
+
+    if (!user) return null;
 
     return (
-        <div className="relative">
+        <div className="relative" ref={dropdownRef}>
             <button onClick={() => setIsOpen(!isOpen)} className="w-10 h-10 bg-[#2C2C2C] rounded-full flex items-center justify-center hover:bg-zinc-700">
                 <div className="w-8 h-8 rounded-full bg-zinc-600 flex items-center justify-center text-white font-bold">{user.avatar}</div>
             </button>
@@ -176,7 +285,7 @@ const NotificationsDropdown = ({ setIsOpen }) => (
 
 // --- LAYOUTS ---
 const AuthPageWrapper = ({ children }) => (
-    <div className="w-full lg:w-1/2 p-8 md:p-12">
+    <div className="w-full lg:w-1/2 p-8 md:p-12 overflow-y-auto">
         <div className="absolute top-4 left-4 md:top-8 md:left-8">
             <Link to="/" className="text-gray-400 hover:text-white transition-colors flex items-center">
                 <span className="mr-2">&larr;</span> Back to Landing Page
@@ -205,12 +314,26 @@ const DashboardLayout = () => {
     const [searchQuery, setSearchQuery] = useState("");
     const [isNotifOpen, setIsNotifOpen] = useState(false);
 
+    const dropdownRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                setIsNotifOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [setIsNotifOpen]);
+
+
     useEffect(() => {
         const pathParts = location.pathname.split('/');
         const currentPath = pathParts[2] || 'dashboard';
         const title = currentPath.charAt(0).toUpperCase() + currentPath.slice(1);
         setPageTitle(title);
-        // Clear search when leaving discover page
         if(currentPath !== 'discover') {
             setSearchQuery("");
         }
@@ -220,7 +343,7 @@ const DashboardLayout = () => {
         <div className="flex h-screen bg-[#2C2C2C] text-white">
             <Sidebar />
             <main className="flex-1 flex flex-col">
-                <TopBar title={pageTitle} searchQuery={searchQuery} setSearchQuery={setSearchQuery} setIsNotifOpen={setIsNotifOpen} isNotifOpen={isNotifOpen}/>
+                <TopBar title={pageTitle} searchQuery={searchQuery} setSearchQuery={setSearchQuery} setIsNotifOpen={setIsNotifOpen} isNotifOpen={isNotifOpen} />
                 <div className="flex-1 overflow-y-auto">
                     <Outlet context={{ searchQuery }}/>
                 </div>
@@ -255,32 +378,46 @@ const Sidebar = () => {
     );
 };
 
-const TopBar = ({ title, searchQuery, setSearchQuery, setIsNotifOpen, isNotifOpen }) => (
-    <header className="flex items-center justify-between p-4 bg-[#212121] border-b border-zinc-700">
-        <h1 className="text-2xl font-bold text-white">{title}</h1>
-        <div className="flex items-center space-x-4">
-            <div className="relative w-72">
-                <SearchIcon />
-                <input type="text" placeholder="Search Projects, Profiles etc..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-[#2C2C2C] text-gray-300 rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#36B083]" />
+const TopBar = ({ title, searchQuery, setSearchQuery, setIsNotifOpen, isNotifOpen }) => {
+    const dropdownRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                setIsNotifOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [setIsNotifOpen]);
+
+    return (
+        <header className="flex items-center justify-between p-4 bg-[#212121] border-b border-zinc-700">
+            <h1 className="text-2xl font-bold text-white">{title}</h1>
+            <div className="flex items-center space-x-4">
+                <div className="relative w-72">
+                    <SearchIcon />
+                    <input type="text" placeholder="Search Projects, Profiles etc..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-[#2C2C2C] text-gray-300 rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#36B083]" />
+                </div>
+                <div className="relative" ref={dropdownRef}>
+                    <button onClick={() => setIsNotifOpen(prev => !prev)} className="p-2 rounded-full hover:bg-zinc-700 relative">
+                        <NotificationsIcon />
+                        <span className="absolute top-1 right-1 block h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-[#212121]"></span>
+                    </button>
+                    {isNotifOpen && <NotificationsDropdown setIsOpen={setIsNotifOpen}/>}
+                </div>
+                <button className="p-2 rounded-full hover:bg-zinc-700" title="Toggle Theme"><MoonIcon /></button>
+                <ProfileDropdown />
             </div>
-            <div className="relative">
-                <button onClick={() => setIsNotifOpen(prev => !prev)} className="p-2 rounded-full hover:bg-zinc-700 relative">
-                    <NotificationsIcon />
-                    <span className="absolute top-1 right-1 block h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-[#212121]"></span>
-                </button>
-                {isNotifOpen && <NotificationsDropdown setIsOpen={setIsNotifOpen}/>}
-            </div>
-            <button className="p-2 rounded-full hover:bg-zinc-700" title="Toggle Theme"><MoonIcon /></button>
-            <ProfileDropdown />
-        </div>
-    </header>
-);
+        </header>
+    );
+};
 
 // --- AUTHENTICATION PAGES ---
-// Includes full validation for a complete experience.
-
 const LoginPage = () => {
-    const { login } = useAuth();
+    const { login, googleSignIn } = useAuth();
     const [formData, setFormData] = useState({ email: '', password: '' });
     const [errors, setErrors] = useState({});
 
@@ -327,7 +464,7 @@ const LoginPage = () => {
                     <ActionButton text="Log In" type="submit"/>
                     <div className="max-w-md mx-auto">
                         <SocialButton
-                            onClick={login}
+                            onClick={googleSignIn}
                             icon={<img src="https://placehold.co/27x32/FFFFFF/000000?text=G" alt="Google Icon" className="w-6 h-6 rounded-sm" />}
                             text="Sign in with Google"
                         />
@@ -343,7 +480,7 @@ const LoginPage = () => {
 
 const SignUpPage = () => {
     const navigate = useNavigate();
-    const { login } = useAuth();
+    const { login, googleSignIn } = useAuth();
     const [formData, setFormData] = useState({ firstName: '', lastName: '', email: '', password: '' });
     const [errors, setErrors] = useState({});
 
@@ -353,9 +490,25 @@ const SignUpPage = () => {
         if (!formData.lastName) newErrors.lastName = 'Last name is required.';
         if (!formData.email) newErrors.email = 'Email is required.';
         else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Email address is invalid.';
-        if (!formData.password) newErrors.password = 'Password is required.';
-        else if (formData.password.length < 8) newErrors.password = 'Password must be at least 8 characters.';
+        if (!formData.password) {
+            newErrors.password = 'Password is required.';
+        } else {
+            const passwordErrors = validatePassword(formData.password);
+            if (passwordErrors.length > 0) {
+                newErrors.password = passwordErrors.join(' ');
+            }
+        }
         return newErrors;
+    };
+
+    const validatePassword = (password) => {
+        const errors = [];
+        if (password.length < 8) errors.push('At least 8 characters.');
+        if (!/[a-z]/.test(password)) errors.push('A lowercase letter.');
+        if (!/[A-Z]/.test(password)) errors.push('An uppercase letter.');
+        if (!/[0-9]/.test(password)) errors.push('A number.');
+        if (!/[!@#$%^&*()]/.test(password)) errors.push('A special character (!@#$%^&*()).');
+        return errors.length > 0 ? errors : [];
     };
 
     const handleChange = (e) => {
@@ -385,12 +538,22 @@ const SignUpPage = () => {
                     <FormInput label="Last name:" type="text" name="lastName" placeholder="Enter your last name" containerClassName="w-full" value={formData.lastName} onChange={handleChange} error={errors.lastName}/>
                 </div>
                 <FormInput label="Email Address:" type="email" name="email" placeholder="Enter your email address" value={formData.email} onChange={handleChange} error={errors.email}/>
-                <FormInput label="Password:" type="password" name="password" placeholder="Enter your password" value={formData.password} onChange={handleChange} error={errors.password} />
+                <FormInput label="Password:" type="password" name="password" placeholder="Enter your password" value={formData.password} onChange={handleChange} error={errors.password}>
+                    {formData.password && (
+                        <div className="text-xs mt-2 text-gray-400">
+                            <p className={`${formData.password.length >= 8 ? 'text-green-400' : 'text-red-400'}`}>&#8226; 8 characters</p>
+                            <p className={`${/[A-Z]/.test(formData.password) ? 'text-green-400' : 'text-red-400'}`}>&#8226; An uppercase letter</p>
+                            <p className={`${/[a-z]/.test(formData.password) ? 'text-green-400' : 'text-red-400'}`}>&#8226; A lowercase letter</p>
+                            <p className={`${/[0-9]/.test(formData.password) ? 'text-green-400' : 'text-red-400'}`}>&#8226; A number</p>
+                            <p className={`${/[!@#$%^&*()]/.test(formData.password) ? 'text-green-400' : 'text-red-400'}`}>&#8226; A special character</p>
+                        </div>
+                    )}
+                </FormInput>
                 <div className="pt-4 space-y-4">
                     <ActionButton text="Sign up" type="submit"/>
                     <div className="max-w-md mx-auto">
                         <SocialButton
-                            onClick={login}
+                            onClick={googleSignIn}
                             icon={<img src="https://placehold.co/27x32/FFFFFF/000000?text=G" alt="Google Icon" className="w-6 h-6 rounded-sm" />}
                             text="Sign in with Google"
                         />
@@ -481,11 +644,11 @@ const OtpPage = () => {
                             onChange={e => handleChange(e.target, index)}
                             onFocus={e => e.target.select()}
                             ref={el => inputsRef.current[index] = el}
-                            className={`w-12 h-12 md:w-14 md:h-14 text-center text-2xl font-bold bg-[#303030] rounded-lg text-white focus:outline-none focus:ring-2 ${error ? 'ring-red-500' : 'focus:ring-[#36B083]'}`}
+                            className={`w-12 h-12 md:w-14 md:h-14 text-center text-2xl font-bold bg-[#303030] rounded-lg text-white focus:outline-none focus:ring-2 ${error ? 'ring-2 ring-red-500' : 'focus:ring-[#36B083]'}`}
                         />
                     ))}
                 </div>
-                 {error && <p className="text-red-500 text-sm text-center -mb-4">{error}</p>}
+                {error && <p className="text-red-500 text-sm text-center -mb-4">{error}</p>}
                 <div className="pt-2">
                     <ActionButton text="Verify Email" type="submit"/>
                 </div>
@@ -502,10 +665,22 @@ const ResetPasswordPage = () => {
     const [formData, setFormData] = useState({ password: '', confirmPassword: '' });
     const [errors, setErrors] = useState({});
 
+    const validatePassword = (password) => {
+        const errors = [];
+        if (password.length < 8) errors.push('At least 8 characters.');
+        if (!/[a-z]/.test(password)) errors.push('A lowercase letter.');
+        if (!/[A-Z]/.test(password)) errors.push('An uppercase letter.');
+        if (!/[0-9]/.test(password)) errors.push('A number.');
+        if (!/[!@#$%^&*()]/.test(password)) errors.push('A special character (!@#$%^&*()).');
+        return errors.length > 0 ? errors : [];
+    };
+
     const validate = () => {
         const newErrors = {};
-        if (!formData.password) newErrors.password = 'New password is required.';
-        else if (formData.password.length < 8) newErrors.password = 'Password must be at least 8 characters.';
+        const passwordErrors = validatePassword(formData.password);
+        if (passwordErrors.length > 0) {
+            newErrors.password = passwordErrors.join(' ');
+        }
         if (!formData.confirmPassword) newErrors.confirmPassword = 'Please confirm your password.';
         else if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = 'Passwords do not match.';
         return newErrors;
@@ -533,7 +708,17 @@ const ResetPasswordPage = () => {
                 <p className="text-white/80 mt-2">Choose a new, secure password.</p>
             </div>
             <form onSubmit={handleSubmit} className="mt-8 space-y-6 max-w-lg">
-                <FormInput name="password" type="password" placeholder="Enter new password" value={formData.password} onChange={handleChange} error={errors.password} />
+                <FormInput name="password" type="password" placeholder="Enter new password" value={formData.password} onChange={handleChange} error={errors.password}>
+                    {formData.password && (
+                        <div className="text-xs mt-2 text-gray-400">
+                            <p className={`${formData.password.length >= 8 ? 'text-green-400' : 'text-red-400'}`}>&#8226; 8 characters</p>
+                            <p className={`${/[A-Z]/.test(formData.password) ? 'text-green-400' : 'text-red-400'}`}>&#8226; An uppercase letter</p>
+                            <p className={`${/[a-z]/.test(formData.password) ? 'text-green-400' : 'text-red-400'}`}>&#8226; A lowercase letter</p>
+                            <p className={`${/[0-9]/.test(formData.password) ? 'text-green-400' : 'text-red-400'}`}>&#8226; A number</p>
+                            <p className={`${/[!@#$%^&*()]/.test(formData.password) ? 'text-green-400' : 'text-red-400'}`}>&#8226; A special character</p>
+                        </div>
+                    )}
+                </FormInput>
                 <FormInput name="confirmPassword" type="password" placeholder="Re-enter new password" value={formData.confirmPassword} onChange={handleChange} error={errors.confirmPassword} />
                 <div className="pt-4">
                     <ActionButton text="Reset Password" type="submit" />
@@ -546,28 +731,71 @@ const ResetPasswordPage = () => {
     );
 };
 
+const LocationDropdowns = ({ locationData, profileData, handleChange, errors }) => {
+    const countries = Object.keys(locationData);
+    const states = profileData.country ? Object.keys(locationData[profileData.country]) : [];
+
+    return (
+        <>
+            <FormInput
+                label="Country"
+                type="select"
+                name="country"
+                value={profileData.country}
+                onChange={handleChange}
+                options={countries}
+                placeholder="Select a country"
+                error={errors.country}
+                containerClassName="md:col-span-1"
+            />
+            {profileData.country && (
+                <FormInput
+                    label="State"
+                    type="select"
+                    name="state"
+                    value={profileData.state}
+                    onChange={handleChange}
+                    options={states}
+                    placeholder="Select a state"
+                    error={errors.state}
+                    containerClassName="md:col-span-1"
+                />
+            )}
+        </>
+    );
+};
+
+
 const ProfileBuilderPage = () => {
     const { login } = useAuth();
-    const [profileData, setProfileData] = useState({ firstName: '', lastName: '', username: '', email: '', age: '', country: '', city: '' });
+    const fileInputRef = useRef(null);
+    const [profileData, setProfileData] = useState({ firstName: '', lastName: '', username: '', email: '', age: '', country: '', state: ''});
     const [errors, setErrors] = useState({});
+    const [profilePicture, setProfilePicture] = useState(null);
     
     const validate = () => {
         const newErrors = {};
-        Object.keys(profileData).forEach(key => {
-            if (!profileData[key]) {
-                const fieldName = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
-                newErrors[key] = `${fieldName} is required.`;
-            }
-        });
-        if (profileData.email && !/\S+@\S+\.\S+/.test(profileData.email)) {
-            newErrors.email = 'Email address is invalid.';
-        }
+        if (!profileData.firstName) newErrors.firstName = 'First name is required.';
+        if (!profileData.lastName) newErrors.lastName = 'Last name is required.';
+        if (!profileData.username) newErrors.username = 'Username is required.';
+        if (!profileData.email) newErrors.email = 'Email is required.';
+        else if (!/\S+@\S+\.\S+/.test(profileData.email)) newErrors.email = 'Email address is invalid.';
+        if (!profileData.age) newErrors.age = 'Age is required.';
+        else if (profileData.age < 13) newErrors.age = 'You must be at least 13 years old.';
+        if (!profileData.country) newErrors.country = 'Country is required.';
+        if (!profileData.state) newErrors.state = 'State is required.';
         return newErrors;
     };
 
     const handleChange = e => {
         const {name, value} = e.target;
-        setProfileData(prev => ({...prev, [name]: value}));
+        setProfileData(prev => {
+            const newProfileData = { ...prev, [name]: value };
+            if (name === 'country') {
+                newProfileData.state = '';
+            }
+            return newProfileData;
+        });
     };
     
     const handleSubmit = e => {
@@ -578,26 +806,44 @@ const ProfileBuilderPage = () => {
             login();
         }
     };
+    
+    const handlePictureChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            setProfilePicture(URL.createObjectURL(file));
+        }
+    };
 
     return (
         <AuthPageWrapper>
-            <div className="w-full lg:w-1/2 p-8 md:p-12 overflow-y-auto h-screen">
+            <div className="w-full p-8 md:p-12 overflow-y-auto">
                 <Logo />
                 <div className="mt-12 flex items-center space-x-6">
-                    <div className="w-28 h-28 bg-[#303030] rounded-full flex items-center justify-center text-white text-5xl cursor-pointer hover:bg-zinc-700">
-                        +
+                    <div
+                        className="w-28 h-28 bg-[#303030] rounded-full flex items-center justify-center text-white text-5xl cursor-pointer hover:bg-zinc-700 relative overflow-hidden"
+                        onClick={() => fileInputRef.current.click()}
+                    >
+                        <input type="file" ref={fileInputRef} onChange={handlePictureChange} className="hidden" accept="image/*" />
+                        {profilePicture ? (
+                            <img src={profilePicture} alt="Profile" className="w-full h-full object-cover rounded-full" />
+                        ) : (
+                            <span className="text-7xl font-light leading-none">+</span>
+                        )}
                     </div>
-                    <h2 className="text-3xl font-semibold text-white">Add profile picture</h2>
+                    <div>
+                        <h2 className="text-3xl font-semibold text-white">Add profile picture</h2>
+                        <p className="text-white/70 text-sm mt-1">Click to upload an image</p>
+                    </div>
                 </div>
-                <form onSubmit={handleSubmit}>
-                    <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl">
+                <form onSubmit={handleSubmit} className="mt-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl">
                         <FormInput type="text" name="firstName" placeholder="First Name" value={profileData.firstName} onChange={handleChange} error={errors.firstName} />
                         <FormInput type="text" name="lastName" placeholder="Last Name" value={profileData.lastName} onChange={handleChange} error={errors.lastName} />
                         <FormInput type="text" name="username" placeholder="Username" containerClassName="md:col-span-2" value={profileData.username} onChange={handleChange} error={errors.username} />
                         <FormInput type="email" name="email" placeholder="Email" containerClassName="md:col-span-2" value={profileData.email} onChange={handleChange} error={errors.email} />
-                        <FormInput type="number" name="age" placeholder="Age" value={profileData.age} onChange={handleChange} error={errors.age} />
-                        <FormInput type="text" name="country" placeholder="Country" value={profileData.country} onChange={handleChange} error={errors.country} />
-                        <FormInput type="text" name="city" placeholder="City" value={profileData.city} onChange={handleChange} error={errors.city} />
+                        <FormInput type="number" name="age" placeholder="Age" min="13" value={profileData.age} onChange={handleChange} error={errors.age} />
+                        
+                        <LocationDropdowns locationData={mockLocations} profileData={profileData} handleChange={handleChange} errors={errors}/>
                     </div>
                     <div className="mt-12 text-center max-w-2xl">
                         <h3 className="text-lg font-bold text-white">Connect across platforms</h3>
@@ -617,10 +863,9 @@ const ProfileBuilderPage = () => {
         </AuthPageWrapper>
     );
 };
-
+    
 
 // --- DASHBOARD & MAIN SITE PAGES ---
-
 const LandingPage = () => {
     const { isLoggedIn } = useAuth();
     const navigate = useNavigate();
@@ -687,6 +932,8 @@ const LandingPage = () => {
 
 const DashboardHomePage = () => {
     const { user } = useAuth();
+    if (!user) return null; // Defensive check for user object
+
     return (
         <div className="p-8 space-y-8">
             <div className="bg-[#212121] p-6 rounded-2xl border border-zinc-700">
@@ -708,14 +955,14 @@ const DashboardHomePage = () => {
                         <div className="space-y-3">
                             {mockProjects.filter(p => p.members.includes(user.id) && p.status === 'Ongoing').map(project => (
                                 <Link to={`/dashboard/projects/${project.id}`} key={project.id} className="block bg-white/10 p-4 rounded-lg cursor-pointer hover:bg-white/20 transition-transform hover:scale-[1.02]">
-                                   <p className="font-semibold text-white">{project.name}</p>
+                                    <p className="font-semibold text-white">{project.name}</p>
                                 </Link>
                             ))}
                         </div>
                     </div>
-                     <div className="bg-[#2a5c51] p-6 rounded-2xl">
+                    <div className="bg-[#2a5c51] p-6 rounded-2xl">
                         <h2 className="text-xl font-bold text-white mb-4">My Tasks</h2>
-                         <div className="space-y-3">
+                        <div className="space-y-3">
                             {mockTasks.filter(t => t.user === user.id).map(task => (
                                 <div key={task.id} className="bg-white/10 p-4 rounded-lg flex justify-between items-center">
                                     <div className="flex items-center gap-3">
@@ -767,7 +1014,6 @@ const ProjectsPage = () => (
         </div>
     </div>
 );
-
 const ProjectDetailPage = () => {
     const { projectId } = useParams();
     const project = mockProjects.find(p => p.id === parseInt(projectId));
@@ -778,7 +1024,7 @@ const ProjectDetailPage = () => {
             <p className="text-gray-300 mt-2 max-w-2xl">{project?.description}</p>
             <h2 className="text-2xl font-bold text-white mt-8 mb-4">Team Members</h2>
             {/* List members here */}
-             <h2 className="text-2xl font-bold text-white mt-8 mb-4">Tasks</h2>
+            <h2 className="text-2xl font-bold text-white mt-8 mb-4">Tasks</h2>
             {/* List tasks here */}
         </div>
     );
@@ -837,8 +1083,12 @@ const DiscoverPage = () => {
 const ChatPage = () => {
     const [activeChat, setActiveChat] = useState(2); // Default to chat with Bob
     const { user } = useAuth();
+    if (!user) return null; // Protect against rendering before auth is loaded
+
     const contacts = mockUsers.filter(u => u.id !== user.id);
     const messages = mockMessages[activeChat] || [];
+    const activeContact = mockUsers.find(u => u.id === activeChat);
+
 
     return (
         <div className="p-8 h-full">
@@ -851,7 +1101,7 @@ const ChatPage = () => {
                     <div className="flex-1 overflow-y-auto">
                         {contacts.map(contact => (
                             <div key={contact.id} onClick={() => setActiveChat(contact.id)} className={`flex items-center gap-4 p-4 cursor-pointer border-l-4 ${activeChat === contact.id ? 'bg-zinc-700 border-green-500' : 'border-transparent hover:bg-zinc-800'}`}>
-                                <div className="w-12 h-12 rounded-full bg-zinc-600 flex-shrink-0 flex items-center justify-center text-white font-bold text-xl">{contact.avatar}</div>
+                                <div className="w-12 h-12 rounded-full bg-zinc-600 flex-shrink-0 flex items-center justify-center text-white font-bold">{contact.avatar}</div>
                                 <div className="flex-1 overflow-hidden">
                                     <h3 className="font-semibold text-white truncate">{contact.name}</h3>
                                     <p className="text-sm text-gray-400 truncate">{mockMessages[contact.id]?.slice(-1)[0]?.text || "No messages yet"}</p>
@@ -863,11 +1113,11 @@ const ChatPage = () => {
                 
                 {/* Conversation Area */}
                 <div className="w-2/3 flex flex-col">
-                    {activeChat ? (
+                    {activeChat && activeContact ? (
                         <>
                             <div className="p-4 border-b border-zinc-700 flex items-center gap-4">
-                                <div className="w-10 h-10 rounded-full bg-zinc-600 flex-shrink-0 flex items-center justify-center text-white font-bold">{mockUsers.find(u=>u.id===activeChat).avatar}</div>
-                                <h3 className="font-bold text-white">{mockUsers.find(u=>u.id===activeChat).name}</h3>
+                                <div className="w-10 h-10 rounded-full bg-zinc-600 flex-shrink-0 flex items-center justify-center text-white font-bold">{activeContact.avatar}</div>
+                                <h3 className="font-bold text-white">{activeContact.name}</h3>
                             </div>
                             <div className="flex-1 p-6 overflow-y-auto space-y-4">
                                 {messages.map(msg => (
@@ -914,30 +1164,30 @@ const SettingsPage = () => {
                 );
             case 'account':
                 return (
-                     <div>
+                    <div>
                         <h2 className="text-2xl font-bold text-white mb-6">Account Settings</h2>
-                         <div className="space-y-6">
-                           <FormInput label="Email Address" type="email" name="email" defaultValue={`${user.name.split(' ')[0].toLowerCase()}@example.com`} />
-                           <button className="bg-zinc-700 font-semibold py-2 px-4 rounded-lg hover:bg-zinc-600">Change Password</button>
+                        <div className="space-y-6">
+                            <FormInput label="Email Address" type="email" name="email" defaultValue={`${user.name.split(' ')[0].toLowerCase()}@example.com`} />
+                            <button className="bg-zinc-700 font-semibold py-2 px-4 rounded-lg hover:bg-zinc-600">Change Password</button>
                         </div>
-                     </div>
+                    </div>
                 );
             case 'notifications':
-                 return (
-                     <div>
+                return (
+                    <div>
                         <h2 className="text-2xl font-bold text-white mb-6">Notification Settings</h2>
-                         <div className="space-y-4">
+                        <div className="space-y-4">
                             <div className="flex items-center justify-between p-4 bg-[#303030] rounded-lg">
                                 <p>Email me for new messages</p>
                                 <input type="checkbox" defaultChecked />
                             </div>
-                             <div className="flex items-center justify-between p-4 bg-[#303030] rounded-lg">
+                            <div className="flex items-center justify-between p-4 bg-[#303030] rounded-lg">
                                 <p>Email me for project invites</p>
                                 <input type="checkbox" defaultChecked />
                             </div>
-                         </div>
-                     </div>
-                 );
+                        </div>
+                    </div>
+                );
             default: return null;
         }
     }
@@ -967,9 +1217,12 @@ const SupportPage = () => <div className="p-8 flex items-center justify-center h
 // --- ROUTING LOGIC ---
 
 const ProtectedRoute = ({ children }) => {
-    const { isLoggedIn } = useAuth();
-    if (!isLoggedIn) {
+    const { isLoggedIn, user } = useAuth();
+    if (isLoggedIn === false) {
         return <Navigate to="/login" replace />;
+    }
+    if (isLoggedIn === null) {
+        return <div className="flex items-center justify-center h-screen bg-[#212121] text-white">Loading...</div>;
     }
     return children;
 };
