@@ -19,6 +19,7 @@
   },
   "homepage": "https://github.com/Shivam314115/skill-collab-platform#readme",
   "dependencies": {
+    "appwrite": "^18.2.0",
     "autoprefixer": "^10.4.21",
     "postcss": "^8.5.6",
     "swiper": "^11.2.10",
