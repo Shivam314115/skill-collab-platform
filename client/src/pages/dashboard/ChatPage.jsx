@@ -85,15 +85,15 @@ export default function ChatPage() {
       
       // Load all users FIRST
       const users = await getAllUsers();
-      const otherUsers = users.filter(u => 
-        (u.$id !== user.$id) && (u.userId !== user.$id)
+      const otherUsers = users.filter(u =>
+        (u.id !== user.id)
       );
       setAllUsers(otherUsers);
       setFeaturedUsers(otherUsers.slice(0, 8));
       console.log('✅ Loaded', otherUsers.length, 'users');
       
       // THEN load conversations with the users data available
-      await loadConversations(otherUsers);
+      await loadConversations(user.id, otherUsers);
       
       console.log('✅ Initial data loaded');
     } catch (error) {
@@ -103,10 +103,10 @@ export default function ChatPage() {
     }
   };
 
-  const loadConversations = async (usersArray = null) => {
+  const loadConversations = async (currentUserId, usersArray = null) => {
     try {
       console.log('💬 Loading conversations...');
-      const userConversations = await getUserConversations(user.$id);
+      const userConversations = await getUserConversations(currentUserId);
       const availableUsers = usersArray || allUsers;
       
       console.log('📋 Found', userConversations.length, 'raw conversations');
@@ -120,7 +120,7 @@ export default function ChatPage() {
             console.log('🔍 Looking for user:', otherUserId);
             
             // First, try to find in loaded users
-            let otherUser = availableUsers.find(u => u.$id === otherUserId || u.userId === otherUserId);
+            let otherUser = availableUsers.find(u => u.id === otherUserId);
             
             // If not found, try to fetch from API
             if (!otherUser) {
@@ -131,8 +131,8 @@ export default function ChatPage() {
               } catch (fetchError) {
                 console.warn('Could not fetch user profile for:', otherUserId);
                 otherUser = {
-                  $id: otherUserId,
-                  fullName: `User ${otherUserId.slice(0, 8)}...`,
+                  id: otherUserId,
+                  fullName: `User ${String(otherUserId).slice(0, 8)}...`,
                   email: 'Unknown User'
                 };
               }
@@ -144,20 +144,20 @@ export default function ChatPage() {
               ...conversation,
               otherUser: otherUser,
               lastMessage: conversation.content || 'No messages yet',
-              lastMessageTime: conversation.createdAt || conversation.$createdAt,
-              isUnread: !conversation.isRead && conversation.receiverId === user.$id
+              lastMessageTime: conversation.createdAt,
+              isUnread: !conversation.isRead && conversation.receiverId === currentUserId
             };
           } catch (error) {
             console.warn('Could not enrich conversation:', error);
             return {
               ...conversation,
               otherUser: {
-                $id: conversation.otherUserId,
-                fullName: `User ${conversation.otherUserId.slice(0, 8)}...`,
+                id: conversation.otherUserId,
+                fullName: `User ${String(conversation.otherUserId).slice(0, 8)}...`,
                 email: 'Unknown'
               },
               lastMessage: conversation.content || 'No messages yet',
-              lastMessageTime: conversation.createdAt || conversation.$createdAt,
+              lastMessageTime: conversation.createdAt,
               isUnread: false
             };
           }
@@ -197,11 +197,11 @@ export default function ChatPage() {
     
     try {
       console.log('💬 Loading conversation with:', activePartnerId);
-      const conversation = await getConversation(user.$id, activePartnerId);
+      const conversation = await getConversation(user.id, activePartnerId);
       setMessages(conversation);
       
       // Set active partner profile - try multiple methods to find the user
-      let partner = allUsers.find(u => u.$id === activePartnerId || u.userId === activePartnerId);
+      let partner = allUsers.find(u => u.id === activePartnerId);
       
       if (!partner) {
         // Try to get from conversations
@@ -214,8 +214,8 @@ export default function ChatPage() {
             partner = await getUserProfile(activePartnerId);
           } catch (error) {
             partner = { 
-              $id: activePartnerId, 
-              fullName: `User ${activePartnerId.slice(0, 8)}...`,
+              id: activePartnerId, 
+              fullName: `User ${String(activePartnerId).slice(0, 8)}...`,
               email: 'Unknown'
             };
           }
@@ -239,11 +239,11 @@ export default function ChatPage() {
     
     try {
       console.log('📤 Sending message...');
-      const newMessage = await sendMessage(user.$id, activePartnerId, content);
+      const newMessage = await sendMessage(user.id, activePartnerId, content);
       setMessages(prev => [...prev, newMessage]);
       
       // Reload conversations to update the sidebar
-      await loadConversations();
+      await loadConversations(user.id);
       
       console.log('✅ Message sent successfully');
     } catch (error) {
@@ -262,16 +262,16 @@ export default function ChatPage() {
   };
 
   const startChatWithUser = async (selectedUser) => {
-    const userId = selectedUser.$id || selectedUser.userId;
+    const userId = selectedUser.id;
     setActivePartnerId(userId);
     setShowUserDiscovery(false);
     setSearchQuery("");
     setSearchResults([]);
     console.log('🗨️ Starting chat with:', selectedUser.fullName);
   };
-
+  
   const selectConversation = (conversation) => {
-    const otherUserId = conversation.otherUserId || conversation.otherUser?.$id;
+    const otherUserId = conversation.otherUserId || conversation.otherUser?.id || conversation.otherUser?.$id;
     if (otherUserId) {
       setActivePartnerId(otherUserId);
       console.log('💬 Selected conversation with:', conversation.otherUser?.fullName);
@@ -294,7 +294,7 @@ export default function ChatPage() {
 
   const getUserDisplayName = (userObj) => {
     if (!userObj) return "Unknown User";
-    return userObj.fullName || userObj.name || `User ${(userObj.$id || userObj.userId)?.slice(0, 8)}...`;
+    return userObj.fullName || userObj.name || `User ${String(userObj.id || '').slice(0, 8)}...`;
   };
 
   if (loading) {
@@ -374,7 +374,7 @@ export default function ChatPage() {
                     ) : searchResults.length > 0 ? (
                       searchResults.map((user) => (
                         <button
-                          key={user.$id || user.userId}
+                          key={user.id || user.$id || user.userId}
                           onClick={() => startChatWithUser(user)}
                           className="w-full p-2 bg-gray-700/30 hover:bg-gray-700/50 rounded-lg text-left transition-colors"
                         >
@@ -399,7 +399,7 @@ export default function ChatPage() {
                   ) : (
                     featuredUsers.map((user) => (
                       <button
-                        key={user.$id || user.userId}
+                        key={user.id || user.$id || user.userId}
                         onClick={() => startChatWithUser(user)}
                         className="w-full p-2 bg-gray-700/30 hover:bg-gray-700/50 rounded-lg text-left transition-colors"
                       >
@@ -429,7 +429,7 @@ export default function ChatPage() {
             <div className="p-2 space-y-1">
               {conversations.map((conversation) => (
                 <button
-                  key={conversation.otherUserId || conversation.$id}
+                  key={conversation.id || conversation.otherUserId || conversation.$id}
                   onClick={() => selectConversation(conversation)}
                   className={`w-full p-3 rounded-lg text-left transition-colors ${
                     activePartnerId === conversation.otherUserId
@@ -520,10 +520,10 @@ export default function ChatPage() {
                 </div>
               ) : (
                 messages.map((message, index) => {
-                  const isOwn = message.senderId === user.$id;
+                  const isOwn = message.senderId === user.id;
                   return (
                     <motion.div
-                      key={message.$id || index}
+                      key={message.id || index}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
@@ -539,7 +539,7 @@ export default function ChatPage() {
                         <p className={`text-xs mt-1 ${
                           isOwn ? 'text-green-100' : 'text-gray-400'
                         }`}>
-                          {formatMessageTime(message.createdAt || message.$createdAt)}
+                          {formatMessageTime(message.createdAt)}
                         </p>
                       </div>
                     </motion.div>

@@ -1,177 +1,141 @@
-// src/layouts/DashboardLayout.jsx
-import React, { useState } from 'react';
-import { Outlet, NavLink } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Home, Briefcase, Compass, MessageSquare, Settings, HelpCircle, User, LogOut } from 'lucide-react';
+import React from 'react';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { Bell, Briefcase, Compass, HelpCircle, Home, LogOut, MessageSquare, Settings } from 'lucide-react';
+import { BrandLockup, BrandMark } from '../components/common/AgileUI';
+import { useAuth } from '../hooks/useAuth';
 
 const navLinks = [
-    { name: 'Home', path: '/dashboard', icon: Home },
-    { name: 'Projects', path: '/dashboard/projects', icon: Briefcase },
-    { name: 'Discover', path: '/dashboard/discover', icon: Compass },
-    { name: 'Chat', path: '/dashboard/chat', icon: MessageSquare },
+  { name: 'Home', path: '/dashboard', icon: Home },
+  { name: 'Projects', path: '/dashboard/projects', icon: Briefcase },
+  { name: 'Discover', path: '/dashboard/discover', icon: Compass },
+  { name: 'Chat', path: '/dashboard/chat', icon: MessageSquare },
 ];
 
-const bottomLinks = [
-    { name: 'Settings', path: '/dashboard/settings', icon: Settings },
-    { name: 'Support', path: '/dashboard/support', icon: HelpCircle },
+const utilityLinks = [
+  { name: 'Settings', path: '/dashboard/settings', icon: Settings },
+  { name: 'Support', path: '/dashboard/support', icon: HelpCircle },
 ];
 
-const SidebarLink = ({ link, isExpanded }) => {
-    return (
-        <li>
-            <NavLink
-                to={link.path}
-                end={link.path === '/dashboard'}
-                className={({ isActive }) =>
-                    `flex items-center gap-4 p-3 rounded-lg transition-all duration-200 group relative ${
-                        isActive
-                            ? 'bg-gradient-to-r from-green-500/20 to-green-500/10 text-white'
-                            : 'text-gray-400 hover:bg-gray-800 hover:text-white'
-                    }`
-                }
-            >
-                {({ isActive }) => (
-                    <>
-                        {isActive && (
-                            <motion.div
-                                layoutId="active-pill"
-                                className="absolute left-0 top-0 bottom-0 w-1 bg-green-500 rounded-r-full"
-                            />
-                        )}
-                        <link.icon className={`w-5 h-5 flex-shrink-0 transition-colors ${isActive ? 'text-green-400' : 'text-gray-500 group-hover:text-white'}`} />
-                        <AnimatePresence>
-                            {isExpanded && (
-                                <motion.span
-                                    initial={{ opacity: 0, x: -20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    exit={{ opacity: 0, x: -20 }}
-                                    transition={{ duration: 0.2, delay: 0.1 }}
-                                    className="font-medium whitespace-nowrap"
-                                >
-                                    {link.name}
-                                </motion.span>
-                            )}
-                        </AnimatePresence>
-                    </>
-                )}
-            </NavLink>
-        </li>
-    );
-};
-
+function DashboardLink({ link }) {
+  const Icon = link.icon;
+  return (
+    <NavLink
+      to={link.path}
+      end={link.path === '/dashboard'}
+      className={({ isActive }) =>
+        `group flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-extrabold transition ${
+          isActive
+            ? 'bg-[#3fbe8c] text-[#111]'
+            : 'text-[#b5b5b5] hover:bg-white/5 hover:text-white'
+        }`
+      }
+    >
+      <Icon className="h-5 w-5 shrink-0" />
+      <span>{link.name}</span>
+    </NavLink>
+  );
+}
 
 export default function DashboardLayout() {
-    // State to manage whether the sidebar is expanded or collapsed
-    const [isExpanded, setIsExpanded] = useState(false);
+  const { currentUser, logout } = useAuth();
+  const navigate = useNavigate();
+  const displayName = currentUser?.fullName || currentUser?.name || 'Builder';
+  const initials = displayName
+    .split(' ')
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
 
-    const sidebarVariants = {
-        expanded: { width: '16rem' /* w-64 */ },
-        collapsed: { width: '5rem' /* w-20 */ }
-    };
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
-    const mainVariants = {
-        expanded: { marginLeft: '16rem' },
-        collapsed: { marginLeft: '5rem' }
-    };
-
-    return (
-        <div className="min-h-screen bg-black text-white flex">
-            {/* Sidebar */}
-            <motion.aside
-                variants={sidebarVariants}
-                initial="collapsed"
-                animate={isExpanded ? "expanded" : "collapsed"}
-                transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                onMouseEnter={() => setIsExpanded(true)}
-                onMouseLeave={() => setIsExpanded(false)}
-                className="bg-gradient-to-b from-black to-gray-900 border-r border-gray-800 p-6 flex flex-col justify-between fixed h-full z-20"
-            >
-                <div>
-                    {/* Logo/Header */}
-                    <div className="flex items-center gap-3 mb-10 h-10">
-                         <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-emerald-400 rounded-lg flex items-center justify-center flex-shrink-0">
-                            <Briefcase className="w-6 h-6 text-black" />
-                        </div>
-                        <AnimatePresence>
-                            {isExpanded && (
-                                <motion.h1
-                                    initial={{ opacity: 0, x: -20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    exit={{ opacity: 0, x: -20 }}
-                                    transition={{ duration: 0.2, delay: 0.1 }}
-                                    className="text-xl font-bold text-white whitespace-nowrap"
-                                >
-                                    SkillHub
-                                </motion.h1>
-                            )}
-                        </AnimatePresence>
-                    </div>
-
-                    {/* Navigation Links */}
-                    <nav>
-                        <ul className="space-y-3">
-                            {navLinks.map((link) => (
-                                <SidebarLink key={link.name} link={link} isExpanded={isExpanded} />
-                            ))}
-                        </ul>
-                        <div className="my-8 border-t border-gray-800" />
-                        <ul className="space-y-3">
-                            {bottomLinks.map((link) => (
-                                <SidebarLink key={link.name} link={link} isExpanded={isExpanded} />
-                            ))}
-                        </ul>
-                    </nav>
-                </div>
-
-                {/* Footer / User Profile Area */}
-                <div className="p-4 bg-gray-900/50 rounded-lg border border-gray-700 overflow-hidden">
-                    <div className="flex items-center justify-between">
-                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-green-500 to-emerald-400 flex items-center justify-center text-black font-bold flex-shrink-0">
-                                AJ
-                            </div>
-                            <AnimatePresence>
-                                {isExpanded && (
-                                    <motion.div
-                                        initial={{ opacity: 0, x: -20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        exit={{ opacity: 0, x: -20 }}
-                                        transition={{ duration: 0.2, delay: 0.1 }}
-                                        className="whitespace-nowrap"
-                                    >
-                                        <p className="font-semibold text-sm">Alex Johnson</p>
-                                        <p className="text-xs text-gray-400">View Profile</p>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </div>
-                        <AnimatePresence>
-                           {isExpanded && (
-                                <motion.div
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    exit={{ opacity: 0 }}
-                                    transition={{ delay: 0.2 }}
-                                >
-                                    <LogOut className="w-5 h-5 text-gray-500 hover:text-red-500 cursor-pointer flex-shrink-0" />
-                                </motion.div>
-                           )}
-                        </AnimatePresence>
-                    </div>
-                </div>
-            </motion.aside>
-
-            {/* Main Content Area */}
-            <motion.main
-                variants={mainVariants}
-                initial="collapsed"
-                animate={isExpanded ? "expanded" : "collapsed"}
-                transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                className="flex-1 overflow-y-auto"
-            >
-                {/* Outlet is where your page components like DashboardHomePage will be rendered */}
-                <Outlet />
-            </motion.main>
+  return (
+    <div className="min-h-screen bg-[#1f1f1f] text-white">
+      <aside className="fixed left-0 top-0 z-30 hidden h-screen w-72 flex-col border-r border-white/10 bg-[#202020] p-5 lg:flex">
+        <BrandLockup size="md" className="mb-8" />
+        <nav className="space-y-2">
+          {navLinks.map((link) => (
+            <DashboardLink key={link.name} link={link} />
+          ))}
+        </nav>
+        <div className="my-6 h-px bg-white/10" />
+        <nav className="space-y-2">
+          {utilityLinks.map((link) => (
+            <DashboardLink key={link.name} link={link} />
+          ))}
+        </nav>
+        <div className="mt-auto rounded-2xl bg-[#2b2b2b] p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#3fbe8c] text-sm font-black text-[#111]">
+              {initials || 'AA'}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-black">{displayName}</p>
+              <button
+                type="button"
+                onClick={() => navigate('/profile/edit')}
+                className="text-xs font-bold text-[#9c9c9c] hover:text-[#3fbe8c]"
+              >
+                View profile
+              </button>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#242424] px-3 py-2 text-xs font-black text-[#cfcfcf] transition hover:bg-[#3a3a3a] hover:text-white"
+          >
+            <LogOut className="h-4 w-4" />
+            Logout
+          </button>
         </div>
-    );
+      </aside>
+
+      <header className="sticky top-0 z-20 border-b border-white/10 bg-[#1f1f1f]/95 px-4 py-3 backdrop-blur lg:hidden">
+        <div className="flex items-center justify-between">
+          <BrandMark size="sm" />
+          <div className="flex items-center gap-2 overflow-x-auto">
+            {[...navLinks, ...utilityLinks].map((link) => {
+              const Icon = link.icon;
+              return (
+                <NavLink
+                  key={link.name}
+                  to={link.path}
+                  end={link.path === '/dashboard'}
+                  className={({ isActive }) =>
+                    `rounded-xl p-2 ${isActive ? 'bg-[#3fbe8c] text-[#111]' : 'bg-[#2b2b2b] text-white'}`
+                  }
+                  aria-label={link.name}
+                >
+                  <Icon className="h-5 w-5" />
+                </NavLink>
+              );
+            })}
+          </div>
+        </div>
+      </header>
+
+      <div className="lg:pl-72">
+        <div className="hidden items-center justify-end gap-3 border-b border-white/5 bg-[#202020] px-7 py-4 lg:flex">
+          <button type="button" className="rounded-xl bg-[#2b2b2b] p-2 text-[#d6d6d6] transition hover:bg-[#343434]">
+            <Bell className="h-5 w-5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/profile/edit')}
+            className="flex items-center gap-3 rounded-xl bg-[#2b2b2b] px-3 py-2 transition hover:bg-[#343434]"
+          >
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#3fbe8c] text-xs font-black text-[#111]">
+              {initials || 'AA'}
+            </span>
+            <span className="text-sm font-black">{displayName}</span>
+          </button>
+        </div>
+        <Outlet />
+      </div>
+    </div>
+  );
 }

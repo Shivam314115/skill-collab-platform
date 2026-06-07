@@ -1,9 +1,9 @@
 // src/pages/auth/ProfileBuilderPage.jsx
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import ProfileForm from '../../components/profile/ProfileForm';
 import AuthLayout from '../../layouts/AuthLayout';
+import { BrandLockup } from '../../components/common/AgileUI';
 
 export default function ProfileBuilderPage() {
     const navigate = useNavigate();
@@ -17,16 +17,12 @@ export default function ProfileBuilderPage() {
 
     return (
         <AuthLayout>
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-                className="w-full max-w-2xl"
-            >
-                <h2 className="text-4xl font-bold text-white mb-4">Build Your Profile</h2>
-                <p className="text-gray-400 mb-8">Tell us more about yourself to get started.</p>
+            <div className="w-full">
+                <BrandLockup size="md" className="mb-10" />
+                <h1 className="text-4xl font-black text-white md:text-5xl">Build Your Profile</h1>
+                <p className="mb-8 mt-3 text-lg font-semibold text-[#aaa]">Tell us more about yourself to get started.</p>
                 <ProfileForm onSave={handleSaveProfile} />
-            </motion.div>
+            </div>
         </AuthLayout>
     );
 }

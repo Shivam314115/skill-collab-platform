@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import ProfileForm from "../../components/profile/ProfileForm";
 import { createUserProfile, getUserProfile } from "../../lib/api"; // fallback below if missing
+import { BrandLockup, PageFrame, PatternArt } from "../../components/common/AgileUI";
 
 export default function ProfileBuilder() {
   const { user } = useAuth();
@@ -15,7 +16,7 @@ export default function ProfileBuilder() {
     const load = async () => {
       try {
         if (typeof getUserProfile === "function") {
-          const p = await getUserProfile(user.$id);
+          const p = await getUserProfile(user.id);
           setInitial(p || {});
         } else {
           // no helper: attempt fetch
@@ -34,7 +35,7 @@ export default function ProfileBuilder() {
     setSaving(true);
     try {
       if (typeof createUserProfile === "function") {
-        await createUserProfile(user.$id, payload);
+        await createUserProfile(user.id, payload);
       } else {
         await fetch(`/api/profile/${user.$id}`, {
           method: "PUT",
@@ -50,13 +51,22 @@ export default function ProfileBuilder() {
   };
 
   if (initial === null) {
-    return <div className="p-8 text-center text-gray-400">Loading profile builder…</div>;
+    return <PageFrame className="flex items-center justify-center p-8 text-center font-bold text-[#999]">Loading profile builder...</PageFrame>;
   }
 
   return (
-    <div className="min-h-screen p-8 bg-gradient-to-b from-black via-gray-900 to-black">
-      <h2 className="text-2xl text-white mb-6">Complete your profile</h2>
-      <ProfileForm initial={initial} onSave={handleSave} saving={saving} />
-    </div>
+    <PageFrame className="p-4 md:p-7">
+      <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[1fr_0.8fr]">
+        <section>
+          <BrandLockup size="md" className="mb-10" />
+          <h1 className="text-4xl font-black text-white md:text-5xl">Complete your profile</h1>
+          <p className="mb-8 mt-3 text-lg font-semibold text-[#aaa]">
+            Help the right collaborators understand your skills and working style.
+          </p>
+          <ProfileForm initial={initial} onSave={handleSave} saving={saving} />
+        </section>
+        <PatternArt className="sticky top-8 hidden max-h-[760px] lg:block" />
+      </div>
+    </PageFrame>
   );
 }

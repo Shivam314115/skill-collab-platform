@@ -1,682 +1,268 @@
-// SettingsPage.jsx - COMPLETE SKILL-BASED COLLABORATION PLATFORM SETTINGS
-import React, { useState, useEffect, useRef, Suspense } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { 
-    Float, Environment, Stars, Cloud, Box, Sphere, MeshDistortMaterial
-} from '@react-three/drei';
-import { motion, AnimatePresence } from 'framer-motion';
-import * as THREE from 'three';
+import { Award, Bell, Github, Link as LinkIcon, Linkedin, Palette, Save, Search, Shield, User, Zap } from 'lucide-react';
+import { AtlasButton, AtlasCard, AtlasTag, PageFrame, PageHeader } from '../../components/common/AgileUI';
 
-// FIXED LUCIDE IMPORTS
-import { 
-    User, Shield, Bell, Globe, Palette, Database, Zap, Eye, 
-    Lock, Key, Mail, Phone, MapPin, Calendar, Clock, Camera,
-    Mic, Video, Download, Upload, Trash2, Edit, Save, Send,
-    Share2, Heart, Star, Award, Users, Target, Briefcase,
-    Settings, Search, Filter, Grid, List, ChevronRight,
-    ChevronDown, MoreHorizontal, X, Check, AlertTriangle,
-    Info, HelpCircle, RefreshCw, Monitor, Smartphone, Tablet,
-    Wifi, Bluetooth, Volume2, Moon, Sun, Contrast, Type,
-    Languages, DollarSign, CreditCard, FileText, BookOpen,
-    Code, GitBranch, Github, Linkedin, Twitter, Facebook,
-    Instagram, Youtube, Link, ExternalLink, Copy, Archive,
-    LogOut, AlertCircle, CheckCircle, Minus, Plus,
-    Activity, MessageSquare, HardDrive
-} from 'lucide-react';
-
-// Settings Categories
 const settingsCategories = [
-    {
-        id: 'profile',
-        title: 'Profile & Account',
-        icon: User,
-        color: 'from-blue-500 to-cyan-500',
-        description: 'Manage your profile, personal information, and account settings'
-    },
-    {
-        id: 'skills',
-        title: 'Skills & Verification',
-        icon: Award,
-        color: 'from-green-500 to-emerald-500',
-        description: 'Configure skill verification methods and manage endorsements'
-    },
-    {
-        id: 'privacy',
-        title: 'Privacy & Security',
-        icon: Shield,
-        color: 'from-purple-500 to-violet-500',
-        description: 'Control your privacy settings and security preferences'
-    },
-    {
-        id: 'notifications',
-        title: 'Notifications',
-        icon: Bell,
-        color: 'from-orange-500 to-red-500',
-        description: 'Customize notification preferences and communication settings'
-    },
-    {
-        id: 'integrations',
-        title: 'Integrations',
-        icon: Zap,
-        color: 'from-yellow-500 to-amber-500',
-        description: 'Connect external accounts and manage third-party integrations'
-    },
-    {
-        id: 'appearance',
-        title: 'Appearance',
-        icon: Palette,
-        color: 'from-indigo-500 to-blue-500',
-        description: 'Customize theme, layout, and visual preferences'
-    }
+  { id: 'profile', title: 'Profile & Account', icon: User, description: 'Personal information and profile links' },
+  { id: 'skills', title: 'Skills & Verification', icon: Award, description: 'Skill checks, endorsements, and proof signals' },
+  { id: 'privacy', title: 'Privacy & Security', icon: Shield, description: 'Login security and profile visibility' },
+  { id: 'notifications', title: 'Notifications', icon: Bell, description: 'Push and email preferences' },
+  { id: 'integrations', title: 'Integrations', icon: Zap, description: 'Connect GitHub and professional networks' },
+  { id: 'appearance', title: 'Appearance', icon: Palette, description: 'Theme and accent controls' },
 ];
 
-// Mock Settings Data
 const mockUserSettings = {
-    profile: {
-        personalInfo: {
-            firstName: 'Alex',
-            lastName: 'Johnson',
-            email: 'alex.johnson@example.com',
-            phone: '+1 (555) 123-4567',
-            location: 'San Francisco, CA',
-            bio: 'Full-stack developer passionate about AI and blockchain technologies.'
-        }
+  profile: {
+    personalInfo: {
+      firstName: 'Alex',
+      lastName: 'Johnson',
+      email: 'alex.johnson@example.com',
+      bio: 'Full-stack developer passionate about AI and blockchain technologies.',
     },
-    skills: {
-        verification: {
-            autoGithubAnalysis: true,
-            allowPeerEndorsements: true,
-            skillDecayEnabled: true
-        }
+  },
+  skills: {
+    verification: {
+      autoGithubAnalysis: true,
+      allowPeerEndorsements: true,
+      skillDecayEnabled: true,
     },
-    privacy: {
-        account: {
-            twoFactorEnabled: false,
-            loginAlerts: true,
-            sessionTimeout: 30
-        }
+  },
+  privacy: {
+    account: {
+      twoFactorEnabled: false,
+      loginAlerts: true,
     },
-    notifications: {
-        push: {
-            enabled: true,
-            messages: true,
-            projectUpdates: true
-        },
-        email: {
-            enabled: true,
-            frequency: 'immediate'
-        }
+  },
+  notifications: {
+    push: {
+      enabled: true,
+      messages: true,
+      projectUpdates: true,
     },
-    integrations: {
-        connected: [
-            { service: 'GitHub', username: 'alexjohnson', connected: true },
-            { service: 'LinkedIn', username: 'alex-johnson-dev', connected: false }
-        ]
+    email: {
+      enabled: true,
     },
-    appearance: {
-        theme: 'dark',
-        accentColor: 'green',
-        animations: true
-    }
+  },
+  integrations: {
+    connected: [
+      { service: 'GitHub', username: 'alexjohnson', connected: true },
+      { service: 'LinkedIn', username: 'alex-johnson-dev', connected: false },
+    ],
+  },
+  appearance: {
+    theme: 'dark',
+    accentColor: 'green',
+    animations: true,
+  },
 };
 
-// 3D Background Component
-function SettingsBackground() {
-    const meshRef = useRef();
-    
-    useFrame(() => {
-        if (meshRef.current) {
-            meshRef.current.rotation.y += 0.003;
-        }
-    });
-    
-    return (
-        <group>
-            <Float speed={0.5} rotationIntensity={0.2}>
-                <Box ref={meshRef} position={[-25, 0, -30]} args={[3, 3, 3]}>
-                    <MeshDistortMaterial
-                        color="#10b981"
-                        transparent
-                        opacity={0.08}
-                        wireframe
-                    />
-                </Box>
-            </Float>
-            <Stars radius={60} depth={30} count={3000} />
-        </group>
-    );
+function ToggleSwitch({ enabled, onChange, label, description }) {
+  return (
+    <div className="flex items-center justify-between gap-4 rounded-2xl bg-[#242424] p-4">
+      <div>
+        <p className="font-black text-white">{label}</p>
+        {description ? <p className="mt-1 text-sm font-semibold text-[#999]">{description}</p> : null}
+      </div>
+      <button
+        type="button"
+        onClick={() => onChange(!enabled)}
+        className={`relative h-7 w-14 rounded-full transition ${enabled ? 'bg-[#3fbe8c]' : 'bg-[#555]'}`}
+        aria-pressed={enabled}
+      >
+        <span className={`absolute top-1 h-5 w-5 rounded-full bg-white transition ${enabled ? 'left-8' : 'left-1'}`} />
+      </button>
+    </div>
+  );
 }
 
-// Category Card Component
-const CategoryCard = ({ category, isActive, onClick, delay = 0 }) => {
-    const Icon = category.icon;
-    
-    return (
-        <motion.div
-            className={`group relative p-6 rounded-2xl border cursor-pointer transition-all duration-300 ${
-                isActive 
-                    ? 'bg-gradient-to-br from-gray-900 to-gray-800 border-green-500' 
-                    : 'bg-gradient-to-br from-black to-gray-900 border-gray-800 hover:border-gray-700'
-            }`}
-            onClick={onClick}
-            whileHover={{ scale: 1.02, y: -5 }}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay }}
-        >
-            <div className="relative z-10">
-                <div className="flex items-center gap-4 mb-3">
-                    <div className={`p-3 rounded-xl bg-gradient-to-r ${category.color}`}>
-                        <Icon className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                        <h3 className={`font-bold text-lg ${isActive ? 'text-green-400' : 'text-white'}`}>
-                            {category.title}
-                        </h3>
-                        <ChevronRight className={`w-4 h-4 text-gray-400 transition-all ${
-                            isActive ? 'rotate-90 text-green-500' : ''
-                        }`} />
-                    </div>
-                </div>
-                <p className="text-gray-400 text-sm">{category.description}</p>
-            </div>
-        </motion.div>
-    );
-};
+function SettingsSection({ title, icon: Icon, children }) {
+  return (
+    <AtlasCard className="p-6">
+      <div className="mb-5 flex items-center gap-3">
+        <span className="rounded-xl bg-[#173d2d] p-2 text-[#3fbe8c]">
+          <Icon className="h-5 w-5" />
+        </span>
+        <h2 className="text-2xl font-black">{title}</h2>
+      </div>
+      <div className="space-y-4">{children}</div>
+    </AtlasCard>
+  );
+}
 
-// Toggle Switch Component
-const ToggleSwitch = ({ enabled, onChange, label, description }) => {
-    return (
-        <div className="flex items-center justify-between py-3">
-            <div className="flex-1">
-                <label className="text-white font-medium cursor-pointer">{label}</label>
-                {description && <p className="text-sm text-gray-400 mt-1">{description}</p>}
-            </div>
-            <motion.button
-                className={`relative w-14 h-7 rounded-full transition-all duration-200 ${
-                    enabled ? 'bg-green-500' : 'bg-gray-600'
-                }`}
-                onClick={() => onChange(!enabled)}
-                whileHover={{ scale: 1.05 }}
-            >
-                <motion.div
-                    className="absolute top-1 w-5 h-5 bg-white rounded-full shadow-lg"
-                    animate={{ x: enabled ? 32 : 4 }}
-                    transition={{ type: "spring", stiffness: 300 }}
-                />
-            </motion.button>
+function CategoryButton({ category, active, onClick }) {
+  const Icon = category.icon;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`w-full rounded-2xl p-4 text-left transition ${active ? 'bg-[#3fbe8c] text-[#111]' : 'bg-[#2b2b2b] text-white hover:bg-[#303030]'}`}
+    >
+      <div className="flex items-center gap-3">
+        <Icon className="h-5 w-5 shrink-0" />
+        <div>
+          <p className="font-black">{category.title}</p>
+          <p className={`mt-1 text-xs font-semibold ${active ? 'text-[#17402f]' : 'text-[#999]'}`}>{category.description}</p>
         </div>
-    );
-};
+      </div>
+    </button>
+  );
+}
 
-// Settings Section Component
-const SettingsSection = ({ title, children, icon: Icon }) => {
-    return (
-        <motion.div
-            className="bg-gradient-to-br from-black to-gray-900 rounded-2xl border border-gray-800 p-6 mb-6"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-        >
-            <div className="flex items-center gap-3 mb-4">
-                {Icon && (
-                    <div className="p-2 rounded-lg bg-green-500/20 border border-green-500/30">
-                        <Icon className="w-5 h-5 text-green-500" />
-                    </div>
-                )}
-                <h3 className="text-lg font-bold text-white">{title}</h3>
-            </div>
-            <div className="space-y-4">{children}</div>
-        </motion.div>
-    );
-};
-
-// Profile Settings Component
-const ProfileSettings = ({ settings, onSettingsChange }) => {
-    const navigate = useNavigate();
-    return (
-        <div className="space-y-6">
-            <SettingsSection title="Personal Information" icon={User}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-sm font-medium text-white mb-2">First Name</label>
-                        <input
-                            type="text"
-                            value={settings.profile.personalInfo.firstName}
-                            onChange={(e) => onSettingsChange('profile.personalInfo.firstName', e.target.value)}
-                            className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-green-500"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-white mb-2">Last Name</label>
-                        <input
-                            type="text"
-                            value={settings.profile.personalInfo.lastName}
-                            onChange={(e) => onSettingsChange('profile.personalInfo.lastName', e.target.value)}
-                            className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-green-500"
-                        />
-                    </div>
-                </div>
-                
-                <div>
-                    <label className="block text-sm font-medium text-white mb-2">Email</label>
-                    <input
-                        type="email"
-                        value={settings.profile.personalInfo.email}
-                        onChange={(e) => onSettingsChange('profile.personalInfo.email', e.target.value)}
-                        className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-green-500"
-                    />
-                </div>
-                
-                <div>
-                    <label className="block text-sm font-medium text-white mb-2">Bio</label>
-                    <textarea
-                        rows={4}
-                        value={settings.profile.personalInfo.bio}
-                        onChange={(e) => onSettingsChange('profile.personalInfo.bio', e.target.value)}
-                        className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
-                    />
-                </div>
-                <button 
-                    onClick={() => navigate('/profile/edit')}
-                    className="mt-4 bg-green-500 hover:bg-green-400 text-black px-6 py-3 rounded-xl font-medium transition-all"
-                >
-                    Edit Profile
-                </button>
-            </SettingsSection>
+function IntegrationCard({ integration }) {
+  const Icon = integration.service === 'GitHub' ? Github : integration.service === 'LinkedIn' ? Linkedin : LinkIcon;
+  return (
+    <div className="flex items-center justify-between gap-4 rounded-2xl bg-[#242424] p-4">
+      <div className="flex items-center gap-3">
+        <span className="rounded-xl bg-[#173d2d] p-2 text-[#3fbe8c]">
+          <Icon className="h-5 w-5" />
+        </span>
+        <div>
+          <p className="font-black">{integration.service}</p>
+          <p className="text-sm font-semibold text-[#999]">{integration.connected ? `@${integration.username}` : 'Not connected'}</p>
         </div>
-    );
-};
+      </div>
+      <AtlasTag className={integration.connected ? '' : 'bg-[#463119] text-[#f2b35d]'}>
+        {integration.connected ? 'Connected' : 'Connect'}
+      </AtlasTag>
+    </div>
+  );
+}
 
-// Skills Settings Component  
-const SkillsSettings = ({ settings, onSettingsChange }) => {
-    return (
-        <div className="space-y-6">
-            <SettingsSection title="Skill Verification" icon={Award}>
-                <ToggleSwitch
-                    enabled={settings.skills.verification.autoGithubAnalysis}
-                    onChange={(value) => onSettingsChange('skills.verification.autoGithubAnalysis', value)}
-                    label="Automatic GitHub Analysis"
-                    description="Automatically analyze your GitHub repositories to detect skills"
-                />
-                
-                <ToggleSwitch
-                    enabled={settings.skills.verification.allowPeerEndorsements}
-                    onChange={(value) => onSettingsChange('skills.verification.allowPeerEndorsements', value)}
-                    label="Allow Peer Endorsements"
-                    description="Let other verified users endorse your skills"
-                />
-                
-                <ToggleSwitch
-                    enabled={settings.skills.verification.skillDecayEnabled}
-                    onChange={(value) => onSettingsChange('skills.verification.skillDecayEnabled', value)}
-                    label="Enable Skill Decay"
-                    description="Skill confidence scores decrease over time if not refreshed"
-                />
-            </SettingsSection>
-        </div>
-    );
-};
-
-// Privacy Settings Component
-const PrivacySettings = ({ settings, onSettingsChange }) => {
-    return (
-        <div className="space-y-6">
-            <SettingsSection title="Account Security" icon={Shield}>
-                <div className="flex items-center justify-between p-4 bg-gray-800/50 rounded-xl">
-                    <div>
-                        <h4 className="font-medium text-white">Two-Factor Authentication</h4>
-                        <p className="text-sm text-gray-400">Add extra security to your account</p>
-                    </div>
-                    <button
-                        className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                            settings.privacy.account.twoFactorEnabled
-                                ? 'bg-green-500 text-black'
-                                : 'bg-blue-500 text-white hover:bg-blue-400'
-                        }`}
-                    >
-                        {settings.privacy.account.twoFactorEnabled ? 'Enabled' : 'Enable 2FA'}
-                    </button>
-                </div>
-                
-                <ToggleSwitch
-                    enabled={settings.privacy.account.loginAlerts}
-                    onChange={(value) => onSettingsChange('privacy.account.loginAlerts', value)}
-                    label="Login Alerts"
-                    description="Get notified when someone logs into your account"
-                />
-            </SettingsSection>
-        </div>
-    );
-};
-
-// Notifications Settings Component
-const NotificationsSettings = ({ settings, onSettingsChange }) => {
-    return (
-        <div className="space-y-6">
-            <SettingsSection title="Push Notifications" icon={Bell}>
-                <ToggleSwitch
-                    enabled={settings.notifications.push.enabled}
-                    onChange={(value) => onSettingsChange('notifications.push.enabled', value)}
-                    label="Enable Push Notifications"
-                    description="Receive notifications even when the app is closed"
-                />
-                
-                <ToggleSwitch
-                    enabled={settings.notifications.push.messages}
-                    onChange={(value) => onSettingsChange('notifications.push.messages', value)}
-                    label="Messages"
-                    description="New direct messages and team chat messages"
-                />
-                
-                <ToggleSwitch
-                    enabled={settings.notifications.push.projectUpdates}
-                    onChange={(value) => onSettingsChange('notifications.push.projectUpdates', value)}
-                    label="Project Updates"
-                    description="Task assignments and project milestones"
-                />
-            </SettingsSection>
-            
-            <SettingsSection title="Email Notifications" icon={Mail}>
-                <ToggleSwitch
-                    enabled={settings.notifications.email.enabled}
-                    onChange={(value) => onSettingsChange('notifications.email.enabled', value)}
-                    label="Enable Email Notifications"
-                    description="Receive notifications via email"
-                />
-            </SettingsSection>
-        </div>
-    );
-};
-
-// Integration Card Component
-const IntegrationCard = ({ integration, onToggle }) => {
-    const getServiceIcon = (service) => {
-        switch (service) {
-            case 'GitHub': return Github;
-            case 'LinkedIn': return Linkedin;
-            default: return Link;
-        }
-    };
-    
-    const Icon = getServiceIcon(integration.service);
-    
-    return (
-        <div className={`p-4 rounded-xl border transition-all ${
-            integration.connected 
-                ? 'bg-green-500/10 border-green-500/30' 
-                : 'bg-gray-800/50 border-gray-700'
-        }`}>
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${
-                        integration.connected ? 'bg-green-500/20' : 'bg-gray-600/20'
-                    }`}>
-                        <Icon className={`w-5 h-5 ${
-                            integration.connected ? 'text-green-500' : 'text-gray-400'
-                        }`} />
-                    </div>
-                    <div>
-                        <h4 className="font-medium text-white">{integration.service}</h4>
-                        <p className="text-sm text-gray-400">
-                            {integration.connected 
-                                ? `@${integration.username}` 
-                                : 'Not connected'
-                            }
-                        </p>
-                    </div>
-                </div>
-                
-                <button
-                    onClick={() => onToggle(integration.service)}
-                    className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                        integration.connected
-                            ? 'bg-red-500/20 text-red-400 border border-red-500/30'
-                            : 'bg-green-500 text-black hover:bg-green-400'
-                    }`}
-                >
-                    {integration.connected ? 'Disconnect' : 'Connect'}
-                </button>
-            </div>
-        </div>
-    );
-};
-
-// Integrations Settings Component
-const IntegrationsSettings = ({ settings, onSettingsChange }) => {
-    const handleIntegrationToggle = (service) => {
-        console.log(`Toggling integration for ${service}`);
-    };
-    
-    return (
-        <div className="space-y-6">
-            <SettingsSection title="Connected Accounts" icon={Link}>
-                <div className="space-y-4">
-                    {settings.integrations.connected.map((integration) => (
-                        <IntegrationCard
-                            key={integration.service}
-                            integration={integration}
-                            onToggle={handleIntegrationToggle}
-                        />
-                    ))}
-                </div>
-            </SettingsSection>
-        </div>
-    );
-};
-
-// Appearance Settings Component
-const AppearanceSettings = ({ settings, onSettingsChange }) => {
-    const themes = [
-        { value: 'dark', label: 'Dark', preview: 'bg-gray-900' },
-        { value: 'light', label: 'Light', preview: 'bg-white' },
-        { value: 'auto', label: 'System', preview: 'bg-gradient-to-r from-gray-900 to-white' }
-    ];
-    
-    const accentColors = [
-        { value: 'green', label: 'Green', color: 'bg-green-500' },
-        { value: 'blue', label: 'Blue', color: 'bg-blue-500' },
-        { value: 'purple', label: 'Purple', color: 'bg-purple-500' }
-    ];
-    
-    return (
-        <div className="space-y-6">
-            <SettingsSection title="Theme" icon={Palette}>
-                <div>
-                    <label className="block text-sm font-medium text-white mb-3">Color Theme</label>
-                    <div className="grid grid-cols-3 gap-3">
-                        {themes.map(theme => (
-                            <button
-                                key={theme.value}
-                                onClick={() => onSettingsChange('appearance.theme', theme.value)}
-                                className={`p-4 rounded-xl border-2 transition-all ${
-                                    settings.appearance.theme === theme.value
-                                        ? 'border-green-500 bg-green-500/10'
-                                        : 'border-gray-700 hover:border-gray-600'
-                                }`}
-                            >
-                                <div className={`w-full h-12 rounded-lg mb-2 ${theme.preview}`} />
-                                <span className="text-sm text-white">{theme.label}</span>
-                            </button>
-                        ))}
-                    </div>
-                </div>
-                
-                <div>
-                    <label className="block text-sm font-medium text-white mb-3">Accent Color</label>
-                    <div className="flex gap-3">
-                        {accentColors.map(color => (
-                            <button
-                                key={color.value}
-                                onClick={() => onSettingsChange('appearance.accentColor', color.value)}
-                                className={`w-12 h-12 rounded-full border-2 ${color.color} ${
-                                    settings.appearance.accentColor === color.value
-                                        ? 'border-white scale-110'
-                                        : 'border-gray-600'
-                                }`}
-                                title={color.label}
-                            />
-                        ))}
-                    </div>
-                </div>
-                
-                <ToggleSwitch
-                    enabled={settings.appearance.animations}
-                    onChange={(value) => onSettingsChange('appearance.animations', value)}
-                    label="Animations"
-                    description="Enable smooth animations and transitions"
-                />
-            </SettingsSection>
-        </div>
-    );
-};
-
-// Main Settings Page Component
 export default function SettingsPage() {
-    const [activeCategory, setActiveCategory] = useState('profile');
-    const [settings, setSettings] = useState(mockUserSettings);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-    
-    const handleSettingsChange = (path, value) => {
-        const keys = path.split('.');
-        const newSettings = { ...settings };
-        let current = newSettings;
-        
-        for (let i = 0; i < keys.length - 1; i++) {
-            current = current[keys[i]];
-        }
-        
-        current[keys[keys.length - 1]] = value;
-        setSettings(newSettings);
-        setHasUnsavedChanges(true);
-    };
-    
-    const handleSaveSettings = () => {
-        console.log('Saving settings...', settings);
-        setHasUnsavedChanges(false);
-    };
-    
-    const renderSettingsContent = () => {
-        switch (activeCategory) {
-            case 'profile':
-                return <ProfileSettings settings={settings} onSettingsChange={handleSettingsChange} />;
-            case 'skills':
-                return <SkillsSettings settings={settings} onSettingsChange={handleSettingsChange} />;
-            case 'privacy':
-                return <PrivacySettings settings={settings} onSettingsChange={handleSettingsChange} />;
-            case 'notifications':
-                return <NotificationsSettings settings={settings} onSettingsChange={handleSettingsChange} />;
-            case 'integrations':
-                return <IntegrationsSettings settings={settings} onSettingsChange={handleSettingsChange} />;
-            case 'appearance':
-                return <AppearanceSettings settings={settings} onSettingsChange={handleSettingsChange} />;
-            default:
-                return <div className="text-white">Settings content</div>;
-        }
-    };
-    
-    return (
-        <div className="min-h-screen bg-black relative overflow-hidden">
-            {/* 3D Background */}
-            <div className="fixed inset-0 z-0">
-                <Canvas camera={{ position: [0, 0, 30], fov: 60 }}>
-                    <Suspense fallback={null}>
-                        <SettingsBackground />
-                        <Environment preset="night" />
-                    </Suspense>
-                </Canvas>
+  const navigate = useNavigate();
+  const [activeCategory, setActiveCategory] = useState('profile');
+  const [settings, setSettings] = useState(mockUserSettings);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  const handleSettingsChange = (path, value) => {
+    const keys = path.split('.');
+    setSettings((prev) => {
+      const next = structuredClone(prev);
+      let current = next;
+      for (let index = 0; index < keys.length - 1; index += 1) {
+        current = current[keys[index]];
+      }
+      current[keys[keys.length - 1]] = value;
+      return next;
+    });
+    setHasUnsavedChanges(true);
+  };
+
+  const filteredCategories = settingsCategories.filter((category) =>
+    category.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    category.description.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const renderContent = () => {
+    switch (activeCategory) {
+      case 'profile':
+        return (
+          <SettingsSection title="Personal Information" icon={User}>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="atlas-label">First Name</label>
+                <input value={settings.profile.personalInfo.firstName} onChange={(e) => handleSettingsChange('profile.personalInfo.firstName', e.target.value)} className="atlas-input" />
+              </div>
+              <div>
+                <label className="atlas-label">Last Name</label>
+                <input value={settings.profile.personalInfo.lastName} onChange={(e) => handleSettingsChange('profile.personalInfo.lastName', e.target.value)} className="atlas-input" />
+              </div>
             </div>
-            
-            {/* Content */}
-            <div className="relative z-10 p-6">
-                {/* Header */}
-                <motion.div
-                    className="mb-8"
-                    initial={{ opacity: 0, y: -50 }}
-                    animate={{ opacity: 1, y: 0 }}
-                >
-                    <div className="bg-black/80 backdrop-blur-lg p-8 rounded-3xl border border-gray-700/50 shadow-2xl">
-                        <div className="flex items-center justify-between mb-6">
-                            <div>
-                                <motion.h1
-                                    className="text-5xl font-bold bg-gradient-to-r from-white via-green-200 to-green-400 bg-clip-text text-transparent mb-2"
-                                    initial={{ opacity: 0, x: -50 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                >
-                                    Platform Settings
-                                </motion.h1>
-                                <motion.p
-                                    className="text-gray-400 text-lg"
-                                    initial={{ opacity: 0, x: -50 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                >
-                                    Customize your collaboration experience
-                                </motion.p>
-                            </div>
-                            
-                            <motion.div
-                                className="flex items-center gap-4"
-                                initial={{ opacity: 0, x: 50 }}
-                                animate={{ opacity: 1, x: 0 }}
-                            >
-                                <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                    <input
-                                        type="text"
-                                        placeholder="Search settings..."
-                                        className="pl-10 pr-4 py-3 w-80 bg-gray-900/80 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500"
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                    />
-                                </div>
-                                
-                                <AnimatePresence>
-                                    {hasUnsavedChanges && (
-                                        <motion.button
-                                            onClick={handleSaveSettings}
-                                            className="bg-green-500 hover:bg-green-400 text-black px-6 py-3 rounded-xl font-medium transition-all"
-                                            initial={{ opacity: 0, scale: 0.8 }}
-                                            animate={{ opacity: 1, scale: 1 }}
-                                            exit={{ opacity: 0, scale: 0.8 }}
-                                        >
-                                            <Save className="w-4 h-4 inline mr-2" />
-                                            Save Changes
-                                        </motion.button>
-                                    )}
-                                </AnimatePresence>
-                            </motion.div>
-                        </div>
-                    </div>
-                </motion.div>
-                
-                <div className="flex gap-8">
-                    {/* Settings Categories */}
-                    <div className="w-80 space-y-4">
-                        {settingsCategories.map((category, index) => (
-                            <CategoryCard
-                                key={category.id}
-                                category={category}
-                                isActive={activeCategory === category.id}
-                                onClick={() => setActiveCategory(category.id)}
-                                delay={index * 0.1}
-                            />
-                        ))}
-                    </div>
-                    
-                    {/* Settings Content */}
-                    <div className="flex-1">
-                        <motion.div
-                            key={activeCategory}
-                            initial={{ opacity: 0, x: 20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            className="bg-black/40 backdrop-blur-sm rounded-2xl border border-gray-800/50 p-6"
-                        >
-                            {renderSettingsContent()}
-                        </motion.div>
-                    </div>
-                </div>
+            <div>
+              <label className="atlas-label">Email</label>
+              <input value={settings.profile.personalInfo.email} onChange={(e) => handleSettingsChange('profile.personalInfo.email', e.target.value)} className="atlas-input" />
             </div>
+            <div>
+              <label className="atlas-label">Bio</label>
+              <textarea value={settings.profile.personalInfo.bio} onChange={(e) => handleSettingsChange('profile.personalInfo.bio', e.target.value)} rows={4} className="atlas-input resize-none" />
+            </div>
+            <AtlasButton onClick={() => navigate('/profile/edit')} showIcon={false}>
+              Edit Profile
+            </AtlasButton>
+          </SettingsSection>
+        );
+      case 'skills':
+        return (
+          <SettingsSection title="Skill Verification" icon={Award}>
+            <ToggleSwitch enabled={settings.skills.verification.autoGithubAnalysis} onChange={(value) => handleSettingsChange('skills.verification.autoGithubAnalysis', value)} label="Automatic GitHub Analysis" description="Analyze repositories to detect current skills." />
+            <ToggleSwitch enabled={settings.skills.verification.allowPeerEndorsements} onChange={(value) => handleSettingsChange('skills.verification.allowPeerEndorsements', value)} label="Allow Peer Endorsements" description="Let verified collaborators endorse your skills." />
+            <ToggleSwitch enabled={settings.skills.verification.skillDecayEnabled} onChange={(value) => handleSettingsChange('skills.verification.skillDecayEnabled', value)} label="Enable Skill Decay" description="Reduce stale confidence scores over time." />
+          </SettingsSection>
+        );
+      case 'privacy':
+        return (
+          <SettingsSection title="Account Security" icon={Shield}>
+            <ToggleSwitch enabled={settings.privacy.account.twoFactorEnabled} onChange={(value) => handleSettingsChange('privacy.account.twoFactorEnabled', value)} label="Two-Factor Authentication" description="Add another layer of account security." />
+            <ToggleSwitch enabled={settings.privacy.account.loginAlerts} onChange={(value) => handleSettingsChange('privacy.account.loginAlerts', value)} label="Login Alerts" description="Get notified when someone logs into your account." />
+          </SettingsSection>
+        );
+      case 'notifications':
+        return (
+          <SettingsSection title="Notifications" icon={Bell}>
+            <ToggleSwitch enabled={settings.notifications.push.enabled} onChange={(value) => handleSettingsChange('notifications.push.enabled', value)} label="Push Notifications" description="Receive notifications even when the app is closed." />
+            <ToggleSwitch enabled={settings.notifications.push.messages} onChange={(value) => handleSettingsChange('notifications.push.messages', value)} label="Messages" description="Direct messages and team chat updates." />
+            <ToggleSwitch enabled={settings.notifications.push.projectUpdates} onChange={(value) => handleSettingsChange('notifications.push.projectUpdates', value)} label="Project Updates" description="Milestones, assignments, and approvals." />
+            <ToggleSwitch enabled={settings.notifications.email.enabled} onChange={(value) => handleSettingsChange('notifications.email.enabled', value)} label="Email Notifications" description="Summaries and important account updates." />
+          </SettingsSection>
+        );
+      case 'integrations':
+        return (
+          <SettingsSection title="Connected Accounts" icon={Zap}>
+            {settings.integrations.connected.map((integration) => (
+              <IntegrationCard key={integration.service} integration={integration} />
+            ))}
+          </SettingsSection>
+        );
+      case 'appearance':
+        return (
+          <SettingsSection title="Appearance" icon={Palette}>
+            <div>
+              <label className="atlas-label">Color Theme</label>
+              <div className="grid gap-3 sm:grid-cols-3">
+                {['dark', 'light', 'system'].map((theme) => (
+                  <button
+                    key={theme}
+                    type="button"
+                    onClick={() => handleSettingsChange('appearance.theme', theme)}
+                    className={`rounded-2xl border p-4 text-left font-black capitalize transition ${settings.appearance.theme === theme ? 'border-[#3fbe8c] bg-[#173d2d] text-[#67dba9]' : 'border-white/5 bg-[#242424] text-white hover:bg-[#303030]'}`}
+                  >
+                    {theme}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <ToggleSwitch enabled={settings.appearance.animations} onChange={(value) => handleSettingsChange('appearance.animations', value)} label="Animations" description="Enable smooth interface transitions." />
+          </SettingsSection>
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <PageFrame className="p-4 md:p-7">
+      <PageHeader eyebrow="Workspace controls" title="Platform Settings" description="Customize your collaboration experience.">
+        <div className="relative w-full sm:w-80">
+          <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#777]" />
+          <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search settings" className="atlas-input pl-11" />
         </div>
-    );
+        {hasUnsavedChanges ? (
+          <AtlasButton onClick={() => setHasUnsavedChanges(false)} icon={Save}>
+            Save Changes
+          </AtlasButton>
+        ) : null}
+      </PageHeader>
+
+      <div className="grid gap-6 lg:grid-cols-[22rem_1fr]">
+        <div className="space-y-3">
+          {filteredCategories.map((category) => (
+            <CategoryButton key={category.id} category={category} active={activeCategory === category.id} onClick={() => setActiveCategory(category.id)} />
+          ))}
+        </div>
+        {renderContent()}
+      </div>
+    </PageFrame>
+  );
 }

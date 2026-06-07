@@ -1,103 +1,230 @@
-import React, { useState, useMemo, Suspense } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Canvas } from '@react-three/fiber';
-import {
-    OrbitControls, Environment,
-    ContactShadows, Stars
-} from '@react-three/drei';
-import { motion, AnimatePresence } from 'framer-motion';
-
-// Skill-Based Platform Icons
-import {
-    Plus, Search, Bell, Award, Users, Star, Briefcase, DollarSign, UserCheck, Clock
-} from 'lucide-react';
-
+import { Award, Briefcase, CheckCircle, Clock, Plus, Rocket, Search, Users } from 'lucide-react';
+import { getAllProjects, getAllUsers, getUserNotifications } from '../../lib/api';
+import { AtlasButton, AtlasCard, AtlasTag, PageFrame, PatternArt, StatPill } from '../../components/common/AgileUI';
 import { useAuth } from '../../hooks/useAuth';
-import { mockProjects, mockTasks, mockTimeline, mockNotifications } from '../../api/mockData.js';
 
-// Main Dashboard Component
+const mapProject = (project) => ({
+  id: project.id,
+  name: project.title || project.name || 'Untitled Project',
+  description: project.description || 'A collaborative build in progress.',
+  progress: project.progress ?? Math.floor(Math.random() * 40 + 50),
+  status: project.status === 'SEEKING_COLLABORATORS' ? 'Recruiting' : project.status || 'Active',
+  members: project.collaborators?.length || project.collaboratorIds?.length || project.members || 1,
+});
+
+const mapUser = (user) => ({
+  id: user.id,
+  name: user.fullName || user.name || 'Unknown Builder',
+  role: user.role || 'Product Builder',
+  skills: user.topSkills || user.skills || ['React', 'Design', 'API'],
+});
+
 export default function DashboardHomePage() {
-    const { currentUser } = useAuth();
-    const user = currentUser || { name: 'Guest', role: 'Collaborator' };
-    const navigate = useNavigate();
+  const navigate = useNavigate();
+  const { currentUser } = useAuth();
+  const [projects, setProjects] = useState([]);
+  const [members, setMembers] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(true);
 
-    const [projects, setProjects] = useState(mockProjects);
-    const [tasks, setTasks] = useState(mockTasks);
-    const [skillVerifications, setSkillVerifications] = useState([
-        { id: 1, skill: 'React', status: 'Pending' },
-        { id: 2, skill: 'Node.js', status: 'Verified' },
-    ]);
-    const [timeline, setTimeline] = useState(mockTimeline);
-    const [notifications, setNotifications] = useState(mockNotifications);
-    const [metrics, setMetrics] = useState({
-        skillsVerified: { current: 12, target: 20, growth: 5, trend: 'up' },
-        projectsActive: { current: 4, target: 5, growth: 1, trend: 'up' },
-        endorsements: { current: 32, target: 50, growth: 10, trend: 'up' },
-        collaborators: { current: 8, target: 10, growth: 2, trend: 'down' },
-    });
-    const [teamMembers, setTeamMembers] = useState([
-        { id: 1, name: 'Alice', role: 'Designer' },
-        { id: 2, name: 'Bob', role: 'Frontend' },
-    ]);
+  useEffect(() => {
+    let mounted = true;
 
-    const [quickActionsOpen, setQuickActionsOpen] = useState(false);
-    const [searchQuery, setSearchQuery] = useState('');
-
-    const projectNameToIdMap = useMemo(() => 
-        new Map(projects.map(p => [p.name, p.id])),
-        [projects]
-    );
-
-    const handleTaskUpdate = (taskId, completed) => {
-        setTasks(prev => prev.map(task =>
-            task.id === taskId ? { ...task, completed } : task
-        ));
+    const load = async () => {
+      try {
+        setLoading(true);
+        const [projectData, userData, notifData] = await Promise.all([
+          getAllProjects(), 
+          getAllUsers(),
+          currentUser?.id ? getUserNotifications(currentUser.id) : Promise.resolve([])
+        ]);
+        if (!mounted) return;
+        if (projectData?.length) setProjects(projectData.map(mapProject));
+        if (userData?.length) setMembers(userData.slice(0, 4).map(mapUser));
+        if (notifData?.length) setNotifications(notifData);
+      } catch (error) {
+        console.error('Failed to load dashboard data:', error);
+      } finally {
+        if (mounted) setLoading(false);
+      }
     };
 
-    const unreadNotifications = notifications.filter(n => n.unread).length;
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, [currentUser?.id]);
 
-    const floatingActions = [
-        { icon: Plus, label: 'New Project', color: 'bg-gradient-to-r from-green-500 to-emerald-400 text-black' },
-        { icon: Award, label: 'Verify Skills', color: 'bg-gradient-to-r from-purple-600 to-purple-500 text-white' },
-        { icon: Users, label: 'Find Collaborators', color: 'bg-gradient-to-r from-blue-600 to-blue-500 text-white', path: '/dashboard/discover' },
-        { icon: Star, label: 'Give Endorsement', color: 'bg-gradient-to-r from-yellow-600 to-yellow-500 text-white' }
-    ];
+  const filteredProjects = useMemo(() => {
+    if (!searchQuery.trim()) return projects.slice(0, 4);
+    return projects
+      .filter((project) => project.name.toLowerCase().includes(searchQuery.toLowerCase()))
+      .slice(0, 4);
+  }, [projects, searchQuery]);
 
-    return (
-        <div className="min-h-screen bg-black relative overflow-hidden">
-            {/* Content Overlay */}
-            <div className="relative z-10 p-6">
-                {/* Enhanced Header */}
-                <motion.div
-                    className="mb-8"
-                    initial={{ opacity: 0, y: -100 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 1.2, ease: "easeOut" }}
-                >
-                    <div className="bg-black/80 backdrop-blur-lg p-8 rounded-3xl border border-gray-700/50 shadow-2xl">
-                        <div className="flex items-center justify-between mb-6">
-                            <div>
-                                <motion.h1
-                                    className="text-6xl font-bold bg-gradient-to-r from-white via-green-200 to-green-400 bg-clip-text text-transparent mb-2"
-                                    initial={{ opacity: 0, x: -50 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: 0.5 }}
-                                >
-                                    Skill Collaboration Hub
-                                </motion.h1>
-                                <motion.p
-                                    className="text-gray-400 text-lg"
-                                    initial={{ opacity: 0, x: -50 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: 0.7 }}
-                                >
-                                    Welcome back, {user.name} • Showcase • Verify • Collaborate • Build
-                                </motion.p>
-                            </div>
-                        </div>
-                    </div>
-                </motion.div>
+  const activeProjects = projects.filter((project) => project.status === 'Active').length || projects.length;
+  const totalMembers = projects.reduce((sum, project) => sum + (project.members || 0), 0);
+  const averageProgress = projects.length > 0 ? Math.round(projects.reduce((sum, project) => sum + (project.progress || 0), 0) / projects.length) : 0;
+  const name = currentUser?.fullName || currentUser?.name || 'Builder';
+
+  return (
+    <PageFrame className="p-4 md:p-7">
+      <div className="grid gap-6 xl:grid-cols-[1.55fr_0.95fr]">
+        <AtlasCard className="grid overflow-hidden p-6 md:grid-cols-[1.1fr_0.9fr] md:p-8">
+          <div className="flex min-h-80 flex-col justify-between gap-8">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-[#3fbe8c]">Skill collaboration hub</p>
+              <h1 className="mt-4 max-w-2xl text-4xl font-black leading-none md:text-6xl">
+                Welcome back, {name.split(' ')[0]}
+              </h1>
+              <p className="mt-4 max-w-xl text-lg font-bold text-[#b6b6b6]">
+                Verify talent, find your crew, and keep every project moving toward launch.
+              </p>
             </div>
+            <div className="flex flex-wrap gap-3">
+              <AtlasButton onClick={() => navigate('/dashboard/projects')} icon={Plus}>
+                New Project
+              </AtlasButton>
+              <AtlasButton onClick={() => navigate('/dashboard/discover')} variant="ghost" icon={Users}>
+                Find Collaborators
+              </AtlasButton>
+            </div>
+          </div>
+          <PatternArt className="mt-8 min-h-72 md:mt-0" />
+        </AtlasCard>
+
+        <div className="grid grid-cols-2 gap-4">
+          <StatPill label="Active" value={activeProjects} />
+          <StatPill label="Progress" value={`${averageProgress}%`} />
+          <StatPill label="Collaborators" value={totalMembers} />
+          <StatPill label="Verified" value={projects.length} />
         </div>
-    );
+      </div>
+
+      <div className="mt-6 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+        <AtlasCard className="p-6">
+          <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-2xl font-black">Current Projects</h2>
+              <p className="text-sm font-semibold text-[#9f9f9f]">Your most active collaboration spaces</p>
+            </div>
+            <div className="relative w-full sm:w-72">
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#777]" />
+              <input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search projects"
+                className="atlas-input pl-11"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            {loading ? (
+              <div className="text-[#a6a6a6] text-center py-4">Loading projects...</div>
+            ) : filteredProjects.length > 0 ? (
+              filteredProjects.map((project) => (
+                <button
+                  key={project.id}
+                  type="button"
+                  onClick={() => navigate(`/dashboard/projects/${project.id}`)}
+                  className="w-full rounded-2xl bg-[#242424] p-4 text-left transition hover:bg-[#303030]"
+                >
+                  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <div className="min-w-0">
+                      <div className="mb-2 flex flex-wrap items-center gap-2">
+                        <h3 className="truncate text-lg font-black">{project.name}</h3>
+                        <AtlasTag>{project.status}</AtlasTag>
+                      </div>
+                      <p className="line-clamp-2 text-sm font-semibold text-[#a6a6a6]">{project.description}</p>
+                    </div>
+                    <div className="w-full shrink-0 md:w-44">
+                      <div className="mb-2 flex items-center justify-between text-xs font-black text-[#bdbdbd]">
+                        <span>{project.members} members</span>
+                        <span>{project.progress}%</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-[#363636]">
+                        <div className="h-2 rounded-full bg-[#3fbe8c]" style={{ width: `${project.progress}%` }} />
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              ))
+            ) : (
+              <div className="text-[#a6a6a6] text-center py-4">No projects found. Create one!</div>
+            )}
+          </div>
+        </AtlasCard>
+
+        <div className="space-y-6">
+          <AtlasCard className="p-6">
+            <h2 className="mb-5 text-2xl font-black">Crew Signals</h2>
+            <div className="space-y-3">
+              {loading ? (
+                 <div className="text-[#a6a6a6] text-center py-4">Loading crew...</div>
+              ) : members.length > 0 ? (
+                members.map((member) => (
+                  <div key={member.id} className="flex items-center gap-3 rounded-2xl bg-[#242424] p-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#3fbe8c] text-sm font-black text-[#111]">
+                      {member.name.split(' ').map((part) => part[0]).join('').slice(0, 2)}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-black">{member.name}</p>
+                      <p className="truncate text-xs font-semibold text-[#999]">{member.role}</p>
+                    </div>
+                    <AtlasTag>{member.skills?.[0] || 'Skill'}</AtlasTag>
+                  </div>
+                ))
+              ) : (
+                <div className="text-[#a6a6a6] text-center py-4">No crew members yet.</div>
+              )}
+            </div>
+          </AtlasCard>
+
+          <AtlasCard className="p-6">
+            <h2 className="mb-5 text-2xl font-black">Activity</h2>
+            <div className="space-y-4">
+              {loading ? (
+                <div className="text-[#a6a6a6] text-center py-4">Loading activity...</div>
+              ) : notifications.length > 0 ? (
+                notifications.slice(0, 4).map((item, index) => {
+                  const Icon = index % 2 === 0 ? CheckCircle : Clock;
+                  return (
+                    <div key={item.id || index} className="flex gap-3">
+                      <span className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#173d2d] text-[#3fbe8c]">
+                        <Icon className="h-4 w-4" />
+                      </span>
+                      <div>
+                        <p className="text-sm font-bold text-white">{item.message || item.text || item.title || 'Notification received'}</p>
+                        <p className="text-xs font-semibold text-[#898989]">{item.createdAt ? new Date(item.createdAt).toLocaleDateString() : 'Today'}</p>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="text-[#a6a6a6] text-center py-4">No recent activity.</div>
+              )}
+            </div>
+          </AtlasCard>
+        </div>
+      </div>
+
+      <div className="mt-6 grid gap-6 md:grid-cols-3">
+        {[
+          { icon: Award, title: 'Skill Verification', copy: 'Keep your proofs fresh with GitHub, peer reviews, and project outcomes.' },
+          { icon: Briefcase, title: 'Project Rooms', copy: 'Collect roles, tasks, messages, and launch decisions in one place.' },
+          { icon: Rocket, title: 'Launch Path', copy: 'Move from crew formation to shipped work with fewer handoffs.' },
+        ].map(({ icon: Icon, title, copy }) => (
+          <AtlasCard key={title} className="p-5">
+            <Icon className="mb-4 h-7 w-7 text-[#3fbe8c]" />
+            <h3 className="text-lg font-black">{title}</h3>
+            <p className="mt-2 text-sm font-semibold leading-relaxed text-[#a4a4a4]">{copy}</p>
+          </AtlasCard>
+        ))}
+      </div>
+    </PageFrame>
+  );
 }

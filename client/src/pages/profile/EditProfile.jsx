@@ -1,10 +1,9 @@
 // src/pages/profile/EditProfile.jsx
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import ProfileForm from '../../components/profile/ProfileForm';
-import DashboardLayout from '../../layouts/DashboardLayout';
 import { useAuth } from '../../hooks/useAuth';
+import { PageFrame, PageHeader, PatternArt } from '../../components/common/AgileUI';
 
 export default function EditProfile() {
     const navigate = useNavigate();
@@ -12,7 +11,7 @@ export default function EditProfile() {
 
     // This would be fetched from your backend
     const currentProfile = {
-        name: currentUser?.name || '',
+        name: currentUser?.fullName || currentUser?.name || '',
         role: 'Full-Stack Developer', // This should come from the user's profile
         bio: 'Passionate about building beautiful and functional web applications.',
         skills: ['React', 'Node.js', 'Appwrite'],
@@ -28,17 +27,18 @@ export default function EditProfile() {
     };
 
     return (
-        <DashboardLayout>
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-                className="w-full max-w-4xl mx-auto"
-            >
-                <h2 className="text-4xl font-bold text-white mb-4">Edit Your Profile</h2>
-                <p className="text-gray-400 mb-8">Keep your profile up-to-date to attract collaborators.</p>
-                <ProfileForm profile={currentProfile} onSave={handleSaveProfile} />
-            </motion.div>
-        </DashboardLayout>
+        <PageFrame className="p-4 md:p-7">
+            <PageHeader
+                eyebrow="Profile"
+                title="Edit Your Profile"
+                description="Keep your profile up-to-date to attract collaborators."
+            />
+            <div className="grid gap-8 lg:grid-cols-[1fr_0.7fr]">
+                <section>
+                    <ProfileForm profile={currentProfile} onSave={handleSaveProfile} />
+                </section>
+                <PatternArt variant="portrait" className="sticky top-8 hidden max-h-[720px] lg:block" />
+            </div>
+        </PageFrame>
     );
 }

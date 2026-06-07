@@ -1,11 +1,13 @@
 // src/App.jsx
 import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
+import { useAuth } from './contexts/AuthContext';
 
 // Layouts
-import AuthLayout from './layouts/AuthLayout';
 import DashboardLayout from './layouts/DashboardLayout';
+import { BrandMark } from './components/common/AgileUI';
+import PageTransition from './components/common/PageTransition';
 
 // Pages
 import LandingPage from './pages/LandingPage';
@@ -25,58 +27,62 @@ import NotFoundPage from './pages/NotFoundPage';
 import ProfileBuilder from './pages/profile/ProfileBuilder';
 import EditProfile from './pages/profile/EditProfile';
 
+function AnimatedRoutes() {
+  const { currentUser } = useAuth();
+  const location = useLocation();
+
+  return (
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
+        {/* Public Routes */}
+        <Route path="/" element={!currentUser ? <PageTransition><LandingPage /></PageTransition> : <Navigate to="/dashboard" />} />
+        <Route path="/login" element={!currentUser ? <PageTransition><LoginPage /></PageTransition> : <Navigate to="/dashboard" />} />
+        <Route path="/signup" element={!currentUser ? <PageTransition><SignUpPage /></PageTransition> : <Navigate to="/dashboard" />} />
+        <Route path="/forgot-password" element={!currentUser ? <PageTransition><ForgotPasswordPage /></PageTransition> : <Navigate to="/dashboard" />} />
+        <Route path="/reset-password" element={!currentUser ? <PageTransition><ResetPasswordPage /></PageTransition> : <Navigate to="/dashboard" />} />
+        
+        {/* Profile Builder */}
+        <Route path="/profile-builder" element={currentUser ? <PageTransition><ProfileBuilderPage /></PageTransition> : <Navigate to="/login" />} />
+        <Route path="/profile/setup" element={<PageTransition><ProfileBuilder /></PageTransition>} />
+        <Route path="/profile/edit" element={<PageTransition><EditProfile /></PageTransition>} />
+
+        {/* Protected Routes */}
+        <Route 
+          path="/dashboard" 
+          element={currentUser ? <DashboardLayout /> : <Navigate to="/login" />}
+        >
+          <Route index element={<PageTransition><DashboardHomePage /></PageTransition>} />
+          <Route path="projects" element={<PageTransition><ProjectsPage /></PageTransition>} />
+          <Route path="projects/:id" element={<PageTransition><ProjectDetailPage /></PageTransition>} />
+          <Route path="chat" element={<PageTransition><ChatPage /></PageTransition>} />
+          <Route path="discover" element={<PageTransition><DiscoverPage /></PageTransition>} />
+          <Route path="settings" element={<PageTransition><SettingsPage /></PageTransition>} />
+          <Route path="support" element={<PageTransition><SupportPage /></PageTransition>} />
+        </Route>
+
+        <Route path="*" element={<PageTransition><NotFoundPage /></PageTransition>} />
+      </Routes>
+    </AnimatePresence>
+  );
+}
+
 function AppContent() {
-  const { currentUser, isLoading } = useAuth();
+  const { isLoading } = useAuth();
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-black via-gray-900 to-black">
-        <div className="text-green-400 text-lg animate-pulse">Loading...</div>
+      <div className="flex min-h-screen items-center justify-center bg-[#1f1f1f]">
+        <div className="text-center">
+          <BrandMark size="lg" className="mx-auto mb-4 animate-pulse" />
+          <p className="text-sm font-black uppercase tracking-[0.18em] text-[#3fbe8c]">Loading AgileAtlas</p>
+        </div>
       </div>
     );
   }
 
-  return (
-    <Routes>
-      {/* Public Routes */}
-      <Route path="/" element={!currentUser ? <LandingPage /> : <Navigate to="/dashboard" />} />
-      <Route path="/login" element={!currentUser ? <LoginPage /> : <Navigate to="/dashboard" />} />
-      <Route path="/signup" element={!currentUser ? <SignUpPage /> : <Navigate to="/dashboard" />} />
-      <Route path="/forgot-password" element={!currentUser ? <ForgotPasswordPage /> : <Navigate to="/dashboard" />} />
-      <Route path="/reset-password" element={!currentUser ? <ResetPasswordPage /> : <Navigate to="/dashboard" />} />
-      
-      {/* Profile Builder */}
-      <Route path="/profile-builder" element={currentUser ? <ProfileBuilderPage /> : <Navigate to="/login" />} />
-      <Route path="/profile/setup" element={<ProfileBuilder />} />
-      <Route path="/profile/edit" element={<EditProfile />} />
-
-      {/* Protected Routes */}
-      <Route 
-        path="/dashboard" 
-        element={currentUser ? <DashboardLayout /> : <Navigate to="/login" />}
-      >
-        <Route index element={<DashboardHomePage />} />
-        <Route path="projects" element={<ProjectsPage />} />
-        <Route path="projects/:id" element={<ProjectDetailPage />} />
-        <Route path="chat" element={<ChatPage />} />
-        <Route path="discover" element={<DiscoverPage />} />
-        <Route path="settings" element={<SettingsPage />} />
-        <Route path="support" element={<SupportPage />} />
-      </Route>
-
-      <Route path="*" element={<NotFoundPage />} />
-    </Routes>
-  );
+  return <AnimatedRoutes />;
 }
 
 export default function App() {
-  return (
-    <>
-      {/* Router should be mounted once at the app root (e.g. main.jsx). */}
-      {/* App renders routes without wrapping another <BrowserRouter>. */}
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
-    </>
-  );
+  return <AppContent />;
 }

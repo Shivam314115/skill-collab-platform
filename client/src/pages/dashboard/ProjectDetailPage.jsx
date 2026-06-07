@@ -1,116 +1,158 @@
-import React from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Briefcase, ArrowLeft, Users, Target, DollarSign, Calendar, CheckCircle, Clock } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeft, Calendar, CheckCircle, Clock, DollarSign, Users } from 'lucide-react';
+import { getProject } from '../../lib/api';
+import { AtlasButton, AtlasCard, AtlasTag, PageFrame, PatternArt } from '../../components/common/AgileUI';
 
-// Assuming mock data is available or fetched from an API
 const mockProjects = [
-    { id: 1, name: "AI-Powered Web App", description: "A web application leveraging machine learning to provide personalized user experiences.", progress: 78, status: "Active", members: [{name: 'Sarah Chen'}, {name: 'David Kumar'}], budget: 25000, deadline: "2025-12-15", requiredSkills: ["React", "Python", "Machine Learning", "UI/UX"], skillsVerified: 85, type: "Full-Stack Development" },
-    { id: 2, name: "Mobile E-commerce Platform", description: "A cross-platform mobile app for a seamless shopping experience.", progress: 45, status: "Recruiting", members: [{name: 'Alex Morgan'}], budget: 18000, deadline: "2025-11-30", requiredSkills: ["React Native", "Node.js", "MongoDB", "Payment APIs"], skillsVerified: 60, type: "Mobile Development" },
-    { id: 3, name: "Blockchain Voting System", description: "A decentralized and secure voting system built on blockchain technology.", progress: 92, status: "Active", members: [{name: 'Lisa Rodriguez'}, {name: 'Sarah Chen'}], budget: 42000, deadline: "2025-10-20", requiredSkills: ["Solidity", "Web3", "Smart Contracts", "Security"], skillsVerified: 95, type: "Blockchain" },
-    { id: 4, name: "Data Analytics Dashboard", description: "An interactive dashboard for visualizing complex business intelligence data.", progress: 60, status: "Active", members: [{name: 'David Kumar'}], budget: 30000, deadline: "2025-11-01", requiredSkills: ["D3.js", "PostgreSQL", "ETL"], skillsVerified: 75, type: "Data Science" },
+  { id: 1, name: 'AI-Powered Web App', description: 'A web application leveraging machine learning to provide personalized user experiences.', progress: 78, status: 'Active', members: [{ name: 'Sarah Chen' }, { name: 'David Kumar' }], budget: 25000, deadline: '2026-12-15', requiredSkills: ['React', 'Python', 'Machine Learning', 'UI/UX'], type: 'Full-Stack Development' },
+  { id: 2, name: 'Mobile E-commerce Platform', description: 'A cross-platform mobile app for a seamless shopping experience.', progress: 45, status: 'Recruiting', members: [{ name: 'Alex Morgan' }], budget: 18000, deadline: '2026-11-30', requiredSkills: ['React Native', 'Node.js', 'MongoDB'], type: 'Mobile Development' },
+  { id: 3, name: 'Blockchain Voting System', description: 'A decentralized and secure voting system built on blockchain technology.', progress: 92, status: 'Active', members: [{ name: 'Lisa Rodriguez' }, { name: 'Sarah Chen' }], budget: 42000, deadline: '2026-10-20', requiredSkills: ['Solidity', 'Web3', 'Smart Contracts'], type: 'Blockchain' },
+  { id: 4, name: 'Data Analytics Dashboard', description: 'An interactive dashboard for visualizing complex business intelligence data.', progress: 60, status: 'Active', members: [{ name: 'David Kumar' }], budget: 30000, deadline: '2026-11-01', requiredSkills: ['D3.js', 'PostgreSQL', 'ETL'], type: 'Data Science' },
 ];
 
 const mockTasks = [
-    { id: 1, text: "Design user authentication system", completed: false, project_id: 1 },
-    { id: 2, text: "Implement machine learning model", completed: true, project_id: 1 },
-    { id: 3, text: "Set up smart contract deployment", completed: false, project_id: 3 },
+  { id: 1, text: 'Design user authentication system', completed: false, project_id: 1 },
+  { id: 2, text: 'Implement machine learning model', completed: true, project_id: 1 },
+  { id: 3, text: 'Set up smart contract deployment', completed: false, project_id: 3 },
 ];
 
+const mapProject = (project) => ({
+  id: project.id,
+  name: project.title || project.name,
+  description: project.description || '',
+  progress: project.progress ?? 50,
+  status: project.status === 'SEEKING_COLLABORATORS' ? 'Recruiting' : project.status || 'Active',
+  members: project.creatorName ? [{ name: project.creatorName }] : [],
+  budget: project.budget ?? 20000,
+  deadline: project.updatedAt?.split('T')[0] || 'TBD',
+  requiredSkills: project.requiredSkills ? [...project.requiredSkills] : [],
+  type: project.category || 'Development',
+});
+
 export default function ProjectDetailPage() {
-    const { projectId } = useParams();
-    const navigate = useNavigate();
-    const project = mockProjects.find(p => p.id === parseInt(projectId));
-    const tasks = mockTasks.filter(t => t.project_id === parseInt(projectId));
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [project, setProject] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-    if (!project) {
-        return (
-            <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center">
-                <h1 className="text-4xl font-bold text-red-500 mb-4">Project Not Found</h1>
-                <button
-                    onClick={() => navigate('/dashboard/projects')}
-                    className="flex items-center gap-2 px-4 py-2 bg-green-500 text-black font-semibold rounded-lg hover:bg-green-400"
-                >
-                    <ArrowLeft className="w-5 h-5" />
-                    Back to Projects
-                </button>
-            </div>
-        );
-    }
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      const numericId = parseInt(id, 10);
+      try {
+        const data = await getProject(numericId);
+        if (mounted) setProject(mapProject(data));
+      } catch {
+        const fallback = mockProjects.find((item) => item.id === numericId);
+        if (mounted) setProject(fallback || null);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, [id]);
 
+  const tasks = mockTasks.filter((task) => task.project_id === parseInt(id, 10));
+
+  if (loading) {
     return (
-        <div className="min-h-screen bg-black text-white p-8">
-            {/* Header */}
-            <motion.div initial={{ opacity: 0, y: -30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-                <button
-                    onClick={() => navigate('/dashboard/projects')}
-                    className="flex items-center gap-2 text-gray-400 hover:text-green-400 mb-6"
-                >
-                    <ArrowLeft className="w-5 h-5" />
-                    Back to Projects
-                </button>
-                <div className="flex items-center justify-between">
-                    <h1 className="text-5xl font-bold bg-gradient-to-r from-white to-green-400 bg-clip-text text-transparent">{project.name}</h1>
-                    <div className={`px-4 py-2 text-sm rounded-full font-semibold ${project.status === 'Active' ? 'text-green-400 bg-green-900/30' : 'text-orange-400 bg-orange-900/30'}`}>
-                        {project.status}
-                    </div>
-                </div>
-                <p className="text-gray-400 mt-2 max-w-3xl">{project.description}</p>
-            </motion.div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-10">
-                {/* Left Column: Details & Members */}
-                <motion.div className="lg:col-span-1 space-y-8" initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5, delay: 0.2 }}>
-                    {/* Project Details */}
-                    <div className="bg-gray-900/50 border border-gray-700 rounded-2xl p-6">
-                        <h3 className="text-xl font-bold mb-4">Project Details</h3>
-                        <div className="space-y-3 text-sm">
-                            <div className="flex justify-between"><span className="text-gray-400">Budget</span> <span><DollarSign className="w-4 h-4 inline mr-1 text-green-500" />${project.budget.toLocaleString()}</span></div>
-                            <div className="flex justify-between"><span className="text-gray-400">Deadline</span> <span><Calendar className="w-4 h-4 inline mr-1 text-green-500" />{project.deadline}</span></div>
-                            <div className="flex justify-between"><span className="text-gray-400">Type</span> <span>{project.type}</span></div>
-                        </div>
-                        <div className="w-full bg-gray-800 rounded-full h-2.5 mt-6">
-                            <div className="bg-green-500 h-2.5 rounded-full" style={{ width: `${project.progress}%` }}></div>
-                        </div>
-                        <p className="text-right text-xs text-gray-400 mt-2">{project.progress}% Complete</p>
-                    </div>
-
-                    {/* Team Members */}
-                    <div className="bg-gray-900/50 border border-gray-700 rounded-2xl p-6">
-                        <h3 className="text-xl font-bold mb-4">Team Members ({project.members.length})</h3>
-                        <div className="space-y-3">
-                            {project.members.map(member => (
-                                <div key={member.name} className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-emerald-400 flex items-center justify-center text-black font-bold text-sm">
-                                        {member.name.split(' ').map(w => w[0]).join('')}
-                                    </div>
-                                    <span className="text-sm">{member.name}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </motion.div>
-
-                {/* Right Column: Tasks */}
-                <motion.div className="lg:col-span-2 bg-gray-900/50 border border-gray-700 rounded-2xl p-6" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5, delay: 0.4 }}>
-                    <h3 className="text-xl font-bold mb-4">Project Tasks</h3>
-                    <div className="space-y-4">
-                        {tasks.map(task => (
-                            <div key={task.id} className="flex items-center gap-4 p-3 bg-gray-800/60 rounded-lg">
-                                {task.completed ? (
-                                    <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-                                ) : (
-                                    <Clock className="w-5 h-5 text-yellow-500 flex-shrink-0" />
-                                )}
-                                <p className={`flex-grow ${task.completed ? 'line-through text-gray-500' : ''}`}>{task.text}</p>
-                            </div>
-                        ))}
-                        {tasks.length === 0 && (
-                            <p className="text-gray-500 text-center py-8">No tasks assigned to this project yet.</p>
-                        )}
-                    </div>
-                </motion.div>
-            </div>
-        </div>
+      <PageFrame className="flex items-center justify-center">
+        <p className="font-bold text-[#999]">Loading project...</p>
+      </PageFrame>
     );
+  }
+
+  if (!project) {
+    return (
+      <PageFrame className="flex flex-col items-center justify-center p-6 text-center">
+        <h1 className="text-4xl font-black text-white">Project Not Found</h1>
+        <AtlasButton onClick={() => navigate('/dashboard/projects')} icon={ArrowLeft} className="mt-6">
+          Back to Projects
+        </AtlasButton>
+      </PageFrame>
+    );
+  }
+
+  return (
+    <PageFrame className="p-4 md:p-7">
+      <button
+        type="button"
+        onClick={() => navigate('/dashboard/projects')}
+        className="mb-5 inline-flex items-center gap-2 text-sm font-black text-[#a7a7a7] transition hover:text-[#3fbe8c]"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back to Projects
+      </button>
+
+      <AtlasCard className="grid gap-8 p-6 md:grid-cols-[1.35fr_0.65fr] md:p-8">
+        <div>
+          <div className="mb-5 flex flex-wrap items-center gap-3">
+            <AtlasTag>{project.status}</AtlasTag>
+            <AtlasTag className="bg-[#242424] text-[#cfcfcf]">{project.type}</AtlasTag>
+          </div>
+          <h1 className="max-w-4xl text-4xl font-black leading-none md:text-6xl">{project.name}</h1>
+          <p className="mt-5 max-w-3xl text-base font-semibold leading-relaxed text-[#a9a9a9]">{project.description}</p>
+          <div className="mt-8 max-w-xl">
+            <div className="mb-2 flex justify-between text-xs font-black text-[#a9a9a9]">
+              <span>Build progress</span>
+              <span>{project.progress}%</span>
+            </div>
+            <div className="h-3 rounded-full bg-[#3a3a3a]">
+              <div className="h-3 rounded-full bg-[#3fbe8c]" style={{ width: `${project.progress}%` }} />
+            </div>
+          </div>
+        </div>
+        <PatternArt className="min-h-72" />
+      </AtlasCard>
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-[0.85fr_1.15fr]">
+        <div className="space-y-6">
+          <AtlasCard className="p-6">
+            <h2 className="mb-5 text-2xl font-black">Project Details</h2>
+            <div className="space-y-4 text-sm font-bold">
+              <div className="flex items-center justify-between gap-4 rounded-xl bg-[#242424] p-3">
+                <span className="text-[#999]">Budget</span>
+                <span className="flex items-center gap-1"><DollarSign className="h-4 w-4 text-[#3fbe8c]" />${project.budget.toLocaleString()}</span>
+              </div>
+              <div className="flex items-center justify-between gap-4 rounded-xl bg-[#242424] p-3">
+                <span className="text-[#999]">Deadline</span>
+                <span className="flex items-center gap-1"><Calendar className="h-4 w-4 text-[#3fbe8c]" />{project.deadline}</span>
+              </div>
+              <div className="flex items-center justify-between gap-4 rounded-xl bg-[#242424] p-3">
+                <span className="text-[#999]">Team</span>
+                <span className="flex items-center gap-1"><Users className="h-4 w-4 text-[#3fbe8c]" />{project.members.length}</span>
+              </div>
+            </div>
+          </AtlasCard>
+
+          <AtlasCard className="p-6">
+            <h2 className="mb-5 text-2xl font-black">Skills Needed</h2>
+            <div className="flex flex-wrap gap-2">
+              {(project.requiredSkills || []).length ? project.requiredSkills.map((skill) => <AtlasTag key={skill}>{skill}</AtlasTag>) : <AtlasTag>Open skill brief</AtlasTag>}
+            </div>
+          </AtlasCard>
+        </div>
+
+        <AtlasCard className="p-6">
+          <h2 className="mb-5 text-2xl font-black">Project Tasks</h2>
+          <div className="space-y-4">
+            {tasks.map((task) => {
+              const Icon = task.completed ? CheckCircle : Clock;
+              return (
+                <div key={task.id} className="flex items-center gap-4 rounded-2xl bg-[#242424] p-4">
+                  <Icon className={`h-5 w-5 shrink-0 ${task.completed ? 'text-[#3fbe8c]' : 'text-[#f2b35d]'}`} />
+                  <p className={`font-semibold ${task.completed ? 'text-[#777] line-through' : 'text-white'}`}>{task.text}</p>
+                </div>
+              );
+            })}
+            {tasks.length === 0 ? <p className="py-8 text-center font-semibold text-[#888]">No tasks assigned to this project yet.</p> : null}
+          </div>
+        </AtlasCard>
+      </div>
+    </PageFrame>
+  );
 }

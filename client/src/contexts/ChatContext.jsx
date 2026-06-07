@@ -42,7 +42,7 @@ export function ChatProvider({ children }) {
             // Load all users and conversations in parallel
             const [usersData, conversationsData] = await Promise.all([
                 getAllUsers(),
-                getUserConversations(user.$id)
+                getUserConversations(user.id)
             ]);
 
             setAllUsers(usersData);
@@ -62,18 +62,18 @@ export function ChatProvider({ children }) {
             console.log('💬 Loading conversation with:', otherUserId);
             setLoading(true);
             
-            const conversationMessages = await getConversation(user.$id, otherUserId);
+            const conversationMessages = await getConversation(user.id, otherUserId);
             setMessages(conversationMessages);
             setActiveConversation(otherUserId);
             
             // Mark messages as read
             const unreadMessages = conversationMessages.filter(
-                msg => msg.receiverId === user.$id && !msg.isRead
+                msg => msg.receiverId === user.id && !msg.isRead
             );
             
             for (const message of unreadMessages) {
                 try {
-                    await markMessageAsRead(message.$id);
+                    await markMessageAsRead(message.id);
                 } catch (error) {
                     console.warn('Could not mark message as read:', error);
                 }
@@ -92,7 +92,7 @@ export function ChatProvider({ children }) {
         try {
             console.log('📤 Sending message to:', receiverId);
             
-            const newMessage = await sendMessage(user.$id, receiverId, content);
+            const newMessage = await sendMessage(user.id, receiverId, content);
             
             // Add to current conversation if active
             if (activeConversation === receiverId) {
@@ -100,7 +100,7 @@ export function ChatProvider({ children }) {
             }
             
             // Refresh conversations to update latest message
-            const updatedConversations = await getUserConversations(user.$id);
+            const updatedConversations = await getUserConversations(user.id);
             setConversations(updatedConversations);
             
             return newMessage;
@@ -112,12 +112,12 @@ export function ChatProvider({ children }) {
 
     // Get user info by ID
     const getUserInfo = (userId) => {
-        return allUsers.find(u => u.$id === userId || u.userId === userId);
+        return allUsers.find(u => u.id === userId);
     };
 
     // Get available users to chat with
     const getAvailableUsers = () => {
-        return allUsers.filter(u => u.$id !== user.$id && u.userId !== user.$id);
+        return allUsers.filter(u => u.id !== user.id);
     };
 
     const value = {

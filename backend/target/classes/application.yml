@@ -1,0 +1,33 @@
+spring:
+  application:
+    name: skill-collab
+  datasource:
+    url: jdbc:postgresql://localhost:5432/skillcollab
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+  servlet:
+    multipart:
+      max-file-size: 10MB
+
+app:
+  jwt:
+    secret: your-super-secret-key-min-256-bits-long-for-security-do-not-share-this
+    expiration: 86400000
+  google:
+    api-key: your-google-generative-ai-api-key-here
+
+server:
+  port: 5000
+
+logging:
+  level:
+    root: INFO
+    com.skillcollab: DEBUG

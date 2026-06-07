@@ -1,11 +1,8 @@
 // src/contexts/AuthContext.jsx
 
-import React, { createContext, useContext, useEffect, useState } from "react";
-// Import the Appwrite account service we created
-import { account } from "../lib/appwrite";
-import { ID } from "appwrite";
+import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { loginUser, signupUser, getUserProfile } from "../lib/api";
 
-// 1. Create the context
 export const AuthContext = createContext(null);
 
 // 2. Create the provider component
@@ -13,37 +10,49 @@ export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // 3. Check for a logged-in user on app load
-  useEffect(() => {
-    // This function runs once when the app loads
-    async function checkUserSession() {
+  // 3. Check for a logged-in user on app load from localStorage
+  const fetchAndSetUser = useCallback(async () => {
+    const token = localStorage.getItem('auth_token');
+    const userId = localStorage.getItem('user_id');
+
+    if (token && userId) {
       try {
-        // 'account.get()' checks if there is an active session
-        const userAccount = await account.get();
-        setCurrentUser(userAccount);
+        // Fetch the full user profile to keep state fresh
+        const userProfile = await getUserProfile(userId);
+        // The Spring backend uses 'id', not '$id'
+        setCurrentUser({ ...userProfile, id: Number(userId) });
       } catch (error) {
-        // No user session found
+        console.error("Session restore error, logging out:", error);
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('user_id');
         setCurrentUser(null);
-      } finally {
-        // We're done loading
-        setIsLoading(false);
       }
     }
-
-    checkUserSession();
+    setIsLoading(false);
   }, []);
+
+  useEffect(() => {
+    fetchAndSetUser();
+  }, [fetchAndSetUser]);
 
   // 4. Implement the login function
   const login = async (email, password) => {
     try {
-      // Create a session using Appwrite
-      await account.createEmailPasswordSession(email, password);
-      // Get the user data and update state
-      const userAccount = await account.get();
-      setCurrentUser(userAccount);
-      return userAccount;
+      const response = await loginUser(email, password);
+      localStorage.setItem('auth_token', response.token);
+      localStorage.setItem('user_id', String(response.userId));
+
+      // The login response from the backend contains user details
+      // MIGRATION_GUIDE: { token, type, userId, email, fullName, status }
+      const user = {
+        id: response.userId,
+        fullName: response.fullName,
+        email: response.email,
+      };
+      setCurrentUser(user);
+      return { success: true, user };
     } catch (error) {
-      console.error("Appwrite login error:", error);
+      console.error("Login error:", error);
       throw error; // Re-throw the error so the login page can catch it
     }
   };
@@ -51,34 +60,27 @@ export function AuthProvider({ children }) {
   // 5. Implement the signup function
   const signup = async (email, password, name) => {
     try {
-      // Create a new user account
-      // Note: Appwrite uses ID.unique() to generate a safe, unique ID
-      await account.create(ID.unique(), email, password, name);
-      
+      const response = await signupUser(name, email, password);
       // After creating the account, log the user in
-      const userAccount = await login(email, password);
-      return userAccount;
+      await login(email, password);
+      return { success: true, user: response };
     } catch (error) {
-      console.error("Appwrite signup error:", error);
+      console.error("Signup error:", error);
       throw error;
     }
   };
 
   // 6. Implement the logout function
-  const logout = async () => {
-    try {
-      // Delete the current session
-      await account.deleteSession("current");
-      setCurrentUser(null);
-    } catch (error) {
-      console.error("Appwrite logout error:", error);
-      throw error;
-    }
+  const logout = () => {
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('user_id');
+    setCurrentUser(null);
   };
 
   // 7. Provide the context values to children
   const authContextValue = {
     currentUser,
+    user: currentUser, // for compatibility
     isLoading,
     login,
     logout,
